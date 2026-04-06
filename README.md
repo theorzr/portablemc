@@ -96,6 +96,20 @@ The source code is currently tracked using Git and hosted [on GitHub](https://gi
 We also have an official team workspace [on Codeberg.org](https://codeberg.org/portablemc) where we host a mirror 
 of this repository and the official third-party packaging sources.
 
+### Releasing
+
+Releasing process is mostly managed by GitHub actions, it reacts to new tags being 
+pushed to the repository by a repository admin. This tag should be named `v<version>` where
+`<version>` is the same as the one in `Cargo.toml`, if not matching, the actions will fail.
+
+Once completed, a draft release note is attached to that new tag under [releases](https://github.com/theorzr/portablemc/releases),
+you should complete it with the actual changelog, and then publish the release note.
+Note that the release artifacts are automatically uploaded and signed by the actions.
+
+Then, you should manage the releasing of official third-party packaging, such as 
+[portablemc-arch](https://codeberg.org/portablemc/portablemc-arch) and
+[portablemc-bin-arch](https://codeberg.org/portablemc/portablemc-bin-arch).
+
 ### Contributors
 This launcher would not be as functional without the contributors, and in particular the 
 following for their bug reports, suggestions and pull requests to make the launcher 

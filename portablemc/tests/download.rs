@@ -181,11 +181,11 @@ fn cache() {
         .into_temp_path();
 
     // ...and deduce its cache file.
-    let cache_file = tempfile::TempPath::from_path({
+    let cache_file = tempfile::TempPath::try_from_path({
         let mut buf = file.to_path_buf();
         buf.as_mut_os_string().push(".cache");
         buf
-    });
+    }).unwrap();
 
     // Without prior caching, it should initialize the cache with the Etag
     {
