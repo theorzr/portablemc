@@ -1,14 +1,12 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - 'v**'
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
   GH_TOKEN: ${{ github.token }}
 
 jobs:
@@ -28,12 +26,11 @@ jobs:
         shell: bash
         run: echo "version=$(cargo pkgid -p portablemc | awk -F'[#@]' '{print $NF}')" >> $GITHUB_OUTPUT
 
-  # We only check the cargo version if we are running the workflow against a tag.
-  # If this tag ends with -test, it is used to test the workflow so we just strip!
+  # The cargo version must match the tag. If this tag ends with -test, it is used to 
+  # test the workflow so we just strip!
   check-version:
     name: Check version against tag
     needs: fetch-version
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
 
@@ -42,22 +39,18 @@ jobs:
         run: test "v${{ needs.fetch-version.outputs.version }}" = $(basename "${{ github.ref_name }}" -test)
   
   # Include the other test workflow but trigger it, including ignored tests!
-  # Always running all tests, even if check version is skipped (due to the workflow not
-  # being dispatched on a tag).
   # We include ignored test only if the tag is not a test tag
   test-all:
     name: Test all
     needs: check-version
-    if: ${{ always() && (needs.check-version.result == 'success' || needs.check-version.result == 'skipped') }}
     uses: ./.github/workflows/test.yml
     with:
-      include-ignored: ${{ !startsWith(github.ref, 'refs/tags/') || !endsWith(github.ref, '-test') }}
+      include-ignored: ${{ !endsWith(github.ref, '-test') }}
 
   # We only build if all test passed.
   build:
     name: Build ${{ matrix.target }} on ${{ matrix.image }}
     needs: test-all
-    if: ${{ always() && needs.test-all.result == 'success' }}
     runs-on: ${{ matrix.image }}
 
     strategy:
@@ -139,16 +132,101 @@ jobs:
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
+          name: bin-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
+
+  # Python wheels are built for the same platforms as the binaries, except for 32-bit 
+  # ARM Linux where PyPI only accepts ARMv7 wheels. Linux wheels are built in manylinux
+  # containers, a Python interpreter is required for other platforms.
+  build-py:
+    name: Build Python ${{ matrix.target }} on ${{ matrix.image }}
+    needs: test-all
+    runs-on: ${{ matrix.image }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            image: ubuntu-24.04
+          - target: i686-unknown-linux-gnu
+            image: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            image: ubuntu-24.04
+          - target: armv7-unknown-linux-gnueabihf
+            image: ubuntu-24.04
+          - target: x86_64-apple-darwin
+            image: macos-15-intel
+            python-arch: x64
+          - target: aarch64-apple-darwin
+            image: macos-15
+            python-arch: arm64
+          - target: x86_64-pc-windows-msvc
+            image: windows-2022
+            python-arch: x64
+          - target: i686-pc-windows-msvc
+            image: windows-2022
+            python-arch: x86
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        if: matrix.python-arch != null
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          architecture: ${{ matrix.python-arch }}
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: portablemc-py
+          target: ${{ matrix.target }}
+          manylinux: '2014'
+          args: --release --locked --out dist
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-${{ matrix.target }}
+          path: portablemc-py/dist/
+          if-no-files-found: error
+
+  build-py-sdist:
+    name: Build Python sdist
+    needs: test-all
+    runs-on: ubuntu-24.04
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: portablemc-py
+          command: sdist
+          args: --out dist
+
+      # Ensure that the sdist is self-contained by building a wheel from it.
+      - name: Check sdist
+        shell: bash
+        run: python3 -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/sdist-check" portablemc-py/dist/*.tar.gz
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: py-sdist
+          path: portablemc-py/dist/
+          if-no-files-found: error
   
-  # We only create a release if it's a tag AND if it's not a beta or alpha tag.
+  # We only create a release if it's not a beta or alpha tag.
   release:
     name: Release
     needs: 
       - fetch-version
-      - check-version  # This requires that the workflow is dispatched on a tag!
       - build
     if: ${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
     runs-on: ubuntu-latest
@@ -161,6 +239,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist/
+          pattern: bin-*
           merge-multiple: true
       
       - name: Debug artifacts
@@ -205,13 +284,16 @@ jobs:
         shell: bash
         run: gh release create ${{ github.ref_name }} --verify-tag --draft --title "Version ${{ needs.fetch-version.outputs.version }}" --notes-file dist/release-notes.md dist/*.{tar.gz,zip,sig}
 
-  # We always publish anyway if the full test + build succeeds.
-  # If this tag ends with -test, We don't publish it as we are using it to test workflow.
-  publish:
-    name: Publish
+  # We always publish anyway if the full test + build succeeds, using crates.io trusted
+  # publishing. If this tag ends with -test, we are using it to test workflow, so we
+  # only authenticate and do a dry run, because crates.io has no test registry.
+  publish-crate:
+    name: Publish crates
     needs: build
-    if: ${{ !endsWith(github.ref, '-test') }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
 
       - uses: actions/checkout@v4
@@ -230,8 +312,52 @@ jobs:
           path: target
           key: cargo-ubuntu-24.04-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Publish API
-        run: cargo publish --no-verify -p portablemc
-      
-      - name: Publish CLI
-        run: cargo publish --no-verify -p portablemc-cli
+      - name: Authenticate
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      # Publishing both crates at once, in dependency order, also allows the dry run to
+      # resolve the API crate locally before it's actually published.
+      - name: Publish
+        if: ${{ !endsWith(github.ref, '-test') }}
+        run: cargo publish --no-verify -p portablemc -p portablemc-cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+      - name: Publish (dry run)
+        if: ${{ endsWith(github.ref, '-test') }}
+        run: cargo publish --no-verify --dry-run -p portablemc -p portablemc-cli
+
+  # Python packages are published using PyPI trusted publishing. If this tag ends with
+  # -test, we are using it to test workflow, so we publish to TestPyPI instead, existing
+  # files are skipped so that the same version can be tested again.
+  publish-py:
+    name: Publish Python
+    needs:
+      - build-py
+      - build-py-sdist
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          pattern: py-*
+          merge-multiple: true
+
+      - name: Publish
+        if: ${{ !endsWith(github.ref, '-test') }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+      - name: Publish (TestPyPI)
+        if: ${{ endsWith(github.ref, '-test') }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
