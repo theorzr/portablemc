@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex};
 use std::fmt::Write as _;
 
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use portablemc::fabric::{GameVersion, Installer, Loader, LoaderVersion};
+use portablemc::fabric::{Api, GameVersion, Installer, Loader, LoaderVersion};
 
 use crate::installer::GenericInstaller;
+use crate::base::PyGame;
+use crate::{err, handler};
 
 
 /// Define the `_portablemc.fabric` submodule.
@@ -15,6 +16,11 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGameVersion>()?;
     m.add_class::<PyLoaderVersion>()?;
     m.add_class::<PyInstaller>()?;
+    m.add_class::<PyHandler>()?;
+    m.add_class::<PyApi>()?;
+    m.add_class::<PyApiGameVersion>()?;
+    m.add_class::<PyApiLoaderVersion>()?;
+    err::add_fabric(m)?;
     Ok(())
 }
 
@@ -170,10 +176,103 @@ impl PyInstaller {
         self.0.lock().unwrap().fabric_mut().set_loader_version(loader_version);
     }
 
-    fn install(&self) -> PyResult<crate::base::PyGame> {
-        self.0.lock().unwrap().fabric_mut().install(())
-            .map(crate::base::PyGame)
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+    #[pyo3(signature = (handler = None))]
+    fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
+        let mut inst = self.0.lock().unwrap().fabric().clone();
+        handler::install(py, handler, move |h| inst.install(h), err::from_fabric)
     }
 
+}
+
+/// Handler for Fabric installer events, every method does nothing by default and can 
+/// be overridden by subclasses.
+#[pyclass(name = "Handler", module = "portablemc.fabric", frozen, subclass, extends = crate::mojang::PyHandler)]
+pub struct PyHandler;
+
+#[pymethods]
+#[allow(unused_variables)]
+impl PyHandler {
+
+    #[new]
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __new__(args: &Bound<'_, PyAny>, kwargs: Option<&Bound<'_, PyAny>>) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(crate::base::PyHandler)
+            .add_subclass(crate::mojang::PyHandler)
+            .add_subclass(Self)
+    }
+
+    fn fetch_loader_version(&self, game_version: &Bound<'_, PyAny>, loader_version: &Bound<'_, PyAny>) {}
+    fn fetched_loader_version(&self, game_version: &Bound<'_, PyAny>, loader_version: &Bound<'_, PyAny>) {}
+
+}
+
+/// A Fabric-compatible API, used to list the game and loader versions it supports.
+#[pyclass(name = "Api", module = "portablemc.fabric", frozen)]
+struct PyApi {
+    loader: PyLoader,
+    inner: Api,
+}
+
+#[pymethods]
+impl PyApi {
+
+    #[new]
+    fn __new__(loader: PyLoader) -> Self {
+        Self { loader, inner: Api::new(loader.into()) }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<portablemc.fabric.Api loader=Loader.{:?}>", Loader::from(self.loader))
+    }
+
+    #[getter]
+    fn loader(&self) -> PyLoader {
+        self.loader
+    }
+
+    fn request_game_versions(&self, py: Python<'_>) -> PyResult<Vec<PyApiGameVersion>> {
+        py.detach(|| {
+            self.inner.request_game_versions().map(|versions| versions.iter()
+                .map(|v| PyApiGameVersion { name: v.name().to_string(), stable: v.is_stable() })
+                .collect::<Vec<_>>())
+        }).map_err(|e| err::from_fabric(py, e))
+    }
+
+    #[pyo3(signature = (game_version = None))]
+    fn request_loader_versions(&self, py: Python<'_>, game_version: Option<&str>) -> PyResult<Vec<PyApiLoaderVersion>> {
+        py.detach(|| {
+            self.inner.request_loader_versions(game_version).map(|versions| versions.iter()
+                .map(|v| PyApiLoaderVersion { name: v.name().to_string(), stable: v.is_stable() })
+                .collect::<Vec<_>>())
+        }).map_err(|e| err::from_fabric(py, e))
+    }
+
+}
+
+/// A game version supported by a Fabric-compatible API.
+#[pyclass(name = "ApiGameVersion", module = "portablemc.fabric", frozen, get_all)]
+struct PyApiGameVersion {
+    name: String,
+    stable: bool,
+}
+
+#[pymethods]
+impl PyApiGameVersion {
+    fn __repr__(&self) -> String {
+        format!("<portablemc.fabric.ApiGameVersion name={:?} stable={}>", self.name, if self.stable { "True" } else { "False" })
+    }
+}
+
+/// A loader version supported by a Fabric-compatible API.
+#[pyclass(name = "ApiLoaderVersion", module = "portablemc.fabric", frozen, get_all)]
+struct PyApiLoaderVersion {
+    name: String,
+    stable: bool,
+}
+
+#[pymethods]
+impl PyApiLoaderVersion {
+    fn __repr__(&self) -> String {
+        format!("<portablemc.fabric.ApiLoaderVersion name={:?} stable={}>", self.name, if self.stable { "True" } else { "False" })
+    }
 }

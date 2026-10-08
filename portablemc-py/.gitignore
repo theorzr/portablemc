@@ -1,3 +1,4 @@
 /.env
 /python/**/*.pyd
 /python/**/*.so
+/python/**/__pycache__/
