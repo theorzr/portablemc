@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 
 use portablemc::forge::{InstallReason, Installer, Loader, Repo, RepoVersion, Version};
 
-use crate::installer::GenericInstaller;
+use crate::installer::{GenericInstaller, SharedInstaller};
 use crate::base::PyGame;
 use crate::{err, handler};
 
@@ -58,7 +58,7 @@ impl From<PyVersion> for Version {
 }
 
 #[pyclass(name = "Installer", module = "portablemc.forge", frozen, subclass, extends = crate::mojang::PyInstaller)]
-pub(crate) struct PyInstaller(pub(crate) Arc<Mutex<GenericInstaller>>);
+pub(crate) struct PyInstaller(pub(crate) Arc<SharedInstaller>);
 
 #[pymethods]
 impl PyInstaller {
@@ -66,9 +66,9 @@ impl PyInstaller {
     #[new]
     fn __new__(loader: PyLoader, version: PyVersion) -> PyClassInitializer<Self> {
 
-        let inst = Arc::new(Mutex::new(
+        let inst = SharedInstaller::new(
             GenericInstaller::Forge(Installer::new(loader.into(), version))
-        ));
+        );
         
         PyClassInitializer::from(crate::base::PyInstaller(Arc::clone(&inst)))
             .add_subclass(crate::mojang::PyInstaller(Arc::clone(&inst)))
@@ -76,43 +76,46 @@ impl PyInstaller {
 
     }
 
-    fn __repr__(&self) -> String {
-        let guard = self.0.lock().unwrap();
+    fn __repr__(&self) -> PyResult<String> {
+        let guard = self.0.lock()?;
         let inst = guard.forge();
-        format!("<portablemc.forge.Installer loader=Loader.{:?} version=Version.{:?}>", inst.loader(), inst.version())
+        Ok(format!("<portablemc.forge.Installer loader=Loader.{:?} version=Version.{:?}>", inst.loader(), inst.version()))
     }
 
     #[getter]
-    fn loader(&self) -> PyLoader {
-        match self.0.lock().unwrap().forge().loader() {
+    fn loader(&self) -> PyResult<PyLoader> {
+        Ok(match self.0.lock()?.forge().loader() {
             Loader::Forge => PyLoader::Forge,
             Loader::NeoForge => PyLoader::NeoForge,
-        }
+        })
     }
 
     #[setter]
-    fn set_loader(&self, loader: PyLoader) {
-        self.0.lock().unwrap().forge_mut().set_loader(loader.into());
+    fn set_loader(&self, loader: PyLoader) -> PyResult<()> {
+        self.0.lock()?.forge_mut().set_loader(loader.into());
+        Ok(())
     }
 
     #[getter]
-    fn version(&self) -> PyVersion {
-        match self.0.lock().unwrap().forge().version() {
+    fn version(&self) -> PyResult<PyVersion> {
+        Ok(match self.0.lock()?.forge().version() {
             Version::Stable(game_version) => PyVersion::Stable(game_version.clone()),
             Version::Unstable(game_version) => PyVersion::Unstable(game_version.clone()),
             Version::Name(name) => PyVersion::Name(name.clone()),
-        }
+        })
     }
 
     #[setter]
-    fn set_version(&self, version: PyVersion) {
-        self.0.lock().unwrap().forge_mut().set_version(version);
+    fn set_version(&self, version: PyVersion) -> PyResult<()> {
+        self.0.lock()?.forge_mut().set_version(version);
+        Ok(())
     }
 
     #[pyo3(signature = (handler = None))]
     fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
-        let mut inst = self.0.lock().unwrap().forge().clone();
-        handler::install(py, handler, move |h| inst.install(h), err::from_forge)
+        let mut guard = self.0.lock_install()?;
+        let inst = guard.forge_mut();
+        handler::install(py, handler, |h| inst.install(h), err::from_forge)
     }
 
 }

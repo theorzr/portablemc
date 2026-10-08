@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::fmt::Write as _;
 
 use pyo3::prelude::*;
 
 use portablemc::fabric::{Api, GameVersion, Installer, Loader, LoaderVersion};
 
-use crate::installer::GenericInstaller;
+use crate::installer::{GenericInstaller, SharedInstaller};
 use crate::base::PyGame;
 use crate::{err, handler};
 
@@ -91,7 +91,7 @@ impl From<PyLoaderVersionUnion> for LoaderVersion {
 }
 
 #[pyclass(name = "Installer", module = "portablemc.fabric", frozen, subclass, extends = crate::mojang::PyInstaller)]
-pub(crate) struct PyInstaller(pub(crate) Arc<Mutex<GenericInstaller>>);
+pub(crate) struct PyInstaller(pub(crate) Arc<SharedInstaller>);
 
 #[pymethods]
 impl PyInstaller {
@@ -100,9 +100,9 @@ impl PyInstaller {
     #[pyo3(signature = (loader, game_version = PyGameVersionUnion::Version(PyGameVersion::Stable), loader_version = PyLoaderVersionUnion::Version(PyLoaderVersion::Stable)))]
     fn __new__(loader: PyLoader, game_version: PyGameVersionUnion, loader_version: PyLoaderVersionUnion) -> PyClassInitializer<Self> {
 
-        let inst = Arc::new(Mutex::new(
+        let inst = SharedInstaller::new(
             GenericInstaller::Fabric(Installer::new(loader.into(), game_version, loader_version))
-        ));
+        );
         
         PyClassInitializer::from(crate::base::PyInstaller(Arc::clone(&inst)))
             .add_subclass(crate::mojang::PyInstaller(Arc::clone(&inst)))
@@ -110,9 +110,9 @@ impl PyInstaller {
 
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> PyResult<String> {
         
-        let guard = self.0.lock().unwrap();
+        let guard = self.0.lock()?;
         let inst = guard.fabric();
         let mut buf = format!("<portablemc.fabric.Installer loader=Loader.{:?}", inst.loader());
         
@@ -129,57 +129,60 @@ impl PyInstaller {
         }
 
         write!(buf, ">").unwrap();
-        buf
-
+        Ok(buf)
     }
 
     #[getter]
-    fn loader(&self) -> PyLoader {
-        match self.0.lock().unwrap().fabric().loader() {
+    fn loader(&self) -> PyResult<PyLoader> {
+        Ok(match self.0.lock()?.fabric().loader() {
             Loader::Fabric => PyLoader::Fabric,
             Loader::Quilt => PyLoader::Quilt,
             Loader::LegacyFabric => PyLoader::LegacyFabric,
             Loader::Babric => PyLoader::Babric,
-        }
+        })
     }
 
     #[setter]
-    fn set_loader(&self, loader: PyLoader) {
-        self.0.lock().unwrap().fabric_mut().set_loader(loader.into());
+    fn set_loader(&self, loader: PyLoader) -> PyResult<()> {
+        self.0.lock()?.fabric_mut().set_loader(loader.into());
+        Ok(())
     }
 
     #[getter]
-    fn game_version(&self) -> PyGameVersionUnion {
-        match self.0.lock().unwrap().fabric().game_version() {
+    fn game_version(&self) -> PyResult<PyGameVersionUnion> {
+        Ok(match self.0.lock()?.fabric().game_version() {
             GameVersion::Stable => PyGameVersionUnion::Version(PyGameVersion::Stable),
             GameVersion::Unstable => PyGameVersionUnion::Version(PyGameVersion::Unstable),
             GameVersion::Name(name) => PyGameVersionUnion::Name(name.clone()),
-        }
+        })
     }
 
     #[setter]
-    fn set_game_version(&self, game_version: PyGameVersionUnion) {
-        self.0.lock().unwrap().fabric_mut().set_game_version(game_version);
+    fn set_game_version(&self, game_version: PyGameVersionUnion) -> PyResult<()> {
+        self.0.lock()?.fabric_mut().set_game_version(game_version);
+        Ok(())
     }
 
     #[getter]
-    fn loader_version(&self) -> PyLoaderVersionUnion {
-        match self.0.lock().unwrap().fabric().loader_version() {
+    fn loader_version(&self) -> PyResult<PyLoaderVersionUnion> {
+        Ok(match self.0.lock()?.fabric().loader_version() {
             LoaderVersion::Stable => PyLoaderVersionUnion::Version(PyLoaderVersion::Stable),
             LoaderVersion::Unstable => PyLoaderVersionUnion::Version(PyLoaderVersion::Unstable),
             LoaderVersion::Name(name) => PyLoaderVersionUnion::Name(name.clone()),
-        }
+        })
     }
 
     #[setter]
-    fn set_loader_version(&self, loader_version: PyLoaderVersionUnion) {
-        self.0.lock().unwrap().fabric_mut().set_loader_version(loader_version);
+    fn set_loader_version(&self, loader_version: PyLoaderVersionUnion) -> PyResult<()> {
+        self.0.lock()?.fabric_mut().set_loader_version(loader_version);
+        Ok(())
     }
 
     #[pyo3(signature = (handler = None))]
     fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
-        let mut inst = self.0.lock().unwrap().fabric().clone();
-        handler::install(py, handler, move |h| inst.install(h), err::from_fabric)
+        let mut guard = self.0.lock_install()?;
+        let inst = guard.fabric_mut();
+        handler::install(py, handler, |h| inst.install(h), err::from_fabric)
     }
 
 }

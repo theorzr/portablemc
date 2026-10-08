@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::types::{IntoPyDict, PyBytes, PyList};
@@ -8,7 +8,7 @@ use pyo3::{intern, prelude::*};
 use portablemc::base::{default_main_dir, Installer, Game, JvmPolicy, LoadedVersion, VersionChannel, LoadedLibrary, LibraryDownload};
 use portablemc::maven::Gav;
 
-use crate::installer::GenericInstaller;
+use crate::installer::{GenericInstaller, SharedInstaller};
 use crate::{err, handler};
 
 
@@ -49,7 +49,7 @@ pub enum PyJvmPolicyUnion {
 }
 
 #[pyclass(name = "Installer", module = "portablemc.base", frozen, subclass)]
-pub struct PyInstaller(pub Arc<Mutex<GenericInstaller>>);
+pub struct PyInstaller(pub Arc<SharedInstaller>);
 
 #[pymethods]
 impl PyInstaller {
@@ -57,172 +57,185 @@ impl PyInstaller {
     #[new]
     fn __new__(version: &str) -> Self {
 
-        let inst = Arc::new(Mutex::new(
+        let inst = SharedInstaller::new(
             GenericInstaller::Base(Installer::new(version.to_string()))
-        ));
+        );
 
         Self(inst)
 
     }
 
-    fn __repr__(&self) -> String {
-        let guard = self.0.lock().unwrap();
-        format!("<portablemc.base.Installer version={:?}>", guard.base().version())
+    fn __repr__(&self) -> PyResult<String> {
+        let guard = self.0.lock()?;
+        Ok(format!("<portablemc.base.Installer version={:?}>", guard.base().version()))
     }
 
     #[getter]
-    fn version(&self) -> String {
-        self.0.lock().unwrap().base().version().to_string()
+    fn version(&self) -> PyResult<String> {
+        Ok(self.0.lock()?.base().version().to_string())
     }
 
     #[setter]
-    fn set_version(&self, version: String) {
-        self.0.lock().unwrap().base_mut().set_version(version);
+    fn set_version(&self, version: String) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_version(version);
+        Ok(())
     }
 
     #[getter]
-    fn versions_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().versions_dir().to_path_buf()
+    fn versions_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().versions_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_versions_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_versions_dir(dir);
+    fn set_versions_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_versions_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn libraries_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().libraries_dir().to_path_buf()
+    fn libraries_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().libraries_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_libraries_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_libraries_dir(dir);
+    fn set_libraries_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_libraries_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn assets_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().assets_dir().to_path_buf()
+    fn assets_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().assets_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_assets_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_assets_dir(dir);
+    fn set_assets_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_assets_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn jvm_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().jvm_dir().to_path_buf()
+    fn jvm_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().jvm_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_jvm_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_jvm_dir(dir);
+    fn set_jvm_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_jvm_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn bin_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().bin_dir().to_path_buf()
+    fn bin_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().bin_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_bin_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_bin_dir(dir);
+    fn set_bin_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_bin_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn mc_dir(&self) -> PathBuf {
-        self.0.lock().unwrap().base().mc_dir().to_path_buf()
+    fn mc_dir(&self) -> PyResult<PathBuf> {
+        Ok(self.0.lock()?.base().mc_dir().to_path_buf())
     }
 
     #[setter]
-    fn set_mc_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_mc_dir(dir);
+    fn set_mc_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_mc_dir(dir);
+        Ok(())
     }
 
     // No setter because it's a compound function, setting all paths below.
-    fn set_main_dir(&self, dir: PathBuf) {
-        self.0.lock().unwrap().base_mut().set_main_dir(dir);
+    fn set_main_dir(&self, dir: PathBuf) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_main_dir(dir);
+        Ok(())
     }
 
     #[getter]
-    fn strict_assets_check(&self) -> bool {
-        self.0.lock().unwrap().base().strict_assets_check()
+    fn strict_assets_check(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.base().strict_assets_check())
     }
 
     #[setter]
-    fn set_strict_assets_check(&self, strict: bool) {
-        self.0.lock().unwrap().base_mut().set_strict_assets_check(strict);
+    fn set_strict_assets_check(&self, strict: bool) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_strict_assets_check(strict);
+        Ok(())
     }
 
     #[getter]
-    fn strict_libraries_check(&self) -> bool {
-        self.0.lock().unwrap().base().strict_libraries_check()
+    fn strict_libraries_check(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.base().strict_libraries_check())
     }
 
     #[setter]
-    fn set_strict_libraries_check(&self, strict: bool) {
-        self.0.lock().unwrap().base_mut().set_strict_libraries_check(strict);
+    fn set_strict_libraries_check(&self, strict: bool) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_strict_libraries_check(strict);
+        Ok(())
     }
 
     #[getter]
-    fn strict_jvm_check(&self) -> bool {
-        self.0.lock().unwrap().base().strict_jvm_check()
+    fn strict_jvm_check(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.base().strict_jvm_check())
     }
 
     #[setter]
-    fn set_strict_jvm_check(&self, strict: bool) {
-        self.0.lock().unwrap().base_mut().set_strict_jvm_check(strict);
+    fn set_strict_jvm_check(&self, strict: bool) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_strict_jvm_check(strict);
+        Ok(())
     }
 
     #[getter]
-    fn jvm_policy(&self) -> PyJvmPolicyUnion {
-        match self.0.lock().unwrap().base().jvm_policy() {
+    fn jvm_policy(&self) -> PyResult<PyJvmPolicyUnion> {
+        Ok(match self.0.lock()?.base().jvm_policy() {
             JvmPolicy::Static(file) => PyJvmPolicyUnion::Static(file.clone()),
             JvmPolicy::System => PyJvmPolicyUnion::Policy(PyJvmPolicy::System),
             JvmPolicy::Mojang => PyJvmPolicyUnion::Policy(PyJvmPolicy::Mojang),
             JvmPolicy::SystemThenMojang => PyJvmPolicyUnion::Policy(PyJvmPolicy::SystemThenMojang),
             JvmPolicy::MojangThenSystem => PyJvmPolicyUnion::Policy(PyJvmPolicy::MojangThenSystem),
-        }
+        })
     }
 
     #[setter]
-    fn set_jvm_policy(&self, policy: PyJvmPolicyUnion) {
-        self.0.lock().unwrap().base_mut().set_jvm_policy(match policy {
+    fn set_jvm_policy(&self, policy: PyJvmPolicyUnion) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_jvm_policy(match policy {
             PyJvmPolicyUnion::Static(file) => JvmPolicy::Static(file),
             PyJvmPolicyUnion::Policy(PyJvmPolicy::System) => JvmPolicy::System,
             PyJvmPolicyUnion::Policy(PyJvmPolicy::Mojang) => JvmPolicy::Mojang,
             PyJvmPolicyUnion::Policy(PyJvmPolicy::SystemThenMojang) => JvmPolicy::SystemThenMojang,
             PyJvmPolicyUnion::Policy(PyJvmPolicy::MojangThenSystem) => JvmPolicy::MojangThenSystem,
         });
+        Ok(())
     }
 
     #[getter]
-    fn launcher_name(&self) -> String {
-        self.0.lock().unwrap().base().launcher_name().to_string()
+    fn launcher_name(&self) -> PyResult<String> {
+        Ok(self.0.lock()?.base().launcher_name().to_string())
     }
 
     #[setter]
-    fn set_launcher_name(&self, name: String) {
-        self.0.lock().unwrap().base_mut().set_launcher_name(name);
+    fn set_launcher_name(&self, name: String) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_launcher_name(name);
+        Ok(())
     }
 
     #[getter]
-    fn launcher_version(&self) -> String {
-        self.0.lock().unwrap().base().launcher_version().to_string()
+    fn launcher_version(&self) -> PyResult<String> {
+        Ok(self.0.lock()?.base().launcher_version().to_string())
     }
 
     #[setter]
-    fn set_launcher_version(&self, version: String) {
-        self.0.lock().unwrap().base_mut().set_launcher_version(version);
+    fn set_launcher_version(&self, version: String) -> PyResult<()> {
+        self.0.lock()?.base_mut().set_launcher_version(version);
+        Ok(())
     }
 
-    /// The installation runs on a copy of the installer, so the installer is not locked
-    /// while the GIL is released.
     #[pyo3(signature = (handler = None))]
     fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
-        let mut inst = self.0.lock().unwrap().base().clone();
-        handler::install(py, handler, move |h| inst.install(h), err::from_base)
+        let mut guard = self.0.lock_install()?;
+        let inst = guard.base_mut();
+        handler::install(py, handler, |h| inst.install(h), err::from_base)
     }
 
 }

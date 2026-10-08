@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
@@ -11,7 +11,7 @@ use regex::Regex;
 use portablemc::moj::{FetchExclude, Installer, Manifest, ManifestVersion, QuickPlay, Version};
 
 use crate::base::{PyGame, PyVersionChannel};
-use crate::installer::GenericInstaller;
+use crate::installer::{GenericInstaller, SharedInstaller};
 use crate::handler::HandlerAdapter;
 use crate::uuid::PyUuid;
 use crate::{err, handler, msa};
@@ -130,7 +130,7 @@ impl From<&FetchExclude> for PyFetchExclude {
 }
 
 #[pyclass(name = "Installer", module = "portablemc.mojang", frozen, subclass, extends = crate::base::PyInstaller)]
-pub struct PyInstaller(pub Arc<Mutex<GenericInstaller>>);
+pub struct PyInstaller(pub Arc<SharedInstaller>);
 
 #[pymethods]
 impl PyInstaller {
@@ -139,18 +139,18 @@ impl PyInstaller {
     #[pyo3(signature = (version = PyVersionUnion::Version(PyVersion::Release)))]
     fn __new__(version: PyVersionUnion) -> PyClassInitializer<Self> {
 
-        let inst = Arc::new(Mutex::new(
+        let inst = SharedInstaller::new(
             GenericInstaller::Mojang(Installer::new(version))
-        ));
+        );
         
         PyClassInitializer::from(crate::base::PyInstaller(Arc::clone(&inst)))
             .add_subclass(Self(inst))
 
     }
 
-    fn __repr__(&self) -> String {
+    fn __repr__(&self) -> PyResult<String> {
 
-        let guard = self.0.lock().unwrap();
+        let guard = self.0.lock()?;
         let inst = guard.mojang();
         let mut buf = format!("<portablemc.mojang.Installer");
         
@@ -161,29 +161,29 @@ impl PyInstaller {
         }
 
         write!(buf, ">").unwrap();
-        buf
-        
+        Ok(buf)
     }
 
     #[getter]
-    fn version(&self) -> PyVersionUnion {
-        match self.0.lock().unwrap().mojang().version() {
+    fn version(&self) -> PyResult<PyVersionUnion> {
+        Ok(match self.0.lock()?.mojang().version() {
             Version::Release => PyVersionUnion::Version(PyVersion::Release),
             Version::Snapshot => PyVersionUnion::Version(PyVersion::Snapshot),
             Version::Name(name) => PyVersionUnion::Name(name.clone()),
-        }
+        })
     }
 
     #[setter]
-    fn set_version(&self, version: PyVersionUnion) {
-        self.0.lock().unwrap().mojang_mut().set_version(version);
+    fn set_version(&self, version: PyVersionUnion) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_version(version);
+        Ok(())
     }
 
     #[getter]
-    fn fetch_excludes(&self) -> Vec<PyFetchExclude> {
-        self.0.lock().unwrap().mojang().fetch_excludes().iter()
+    fn fetch_excludes(&self) -> PyResult<Vec<PyFetchExclude>> {
+        Ok(self.0.lock()?.mojang().fetch_excludes().iter()
             .map(PyFetchExclude::from)
-            .collect()
+            .collect())
     }
 
     #[setter]
@@ -191,7 +191,7 @@ impl PyInstaller {
         let excludes = excludes.iter()
             .map(PyFetchExclude::to_rust)
             .collect::<PyResult<Vec<_>>>()?;
-        let mut guard = self.0.lock().unwrap();
+        let mut guard = self.0.lock()?;
         let inst = guard.mojang_mut();
         inst.clear_fetch_exclude();
         for exclude in excludes {
@@ -202,37 +202,39 @@ impl PyInstaller {
 
     fn add_fetch_exclude(&self, exclude: PyFetchExclude) -> PyResult<()> {
         let exclude = exclude.to_rust()?;
-        self.0.lock().unwrap().mojang_mut().add_fetch_exclude(exclude);
+        self.0.lock()?.mojang_mut().add_fetch_exclude(exclude);
         Ok(())
     }
 
-    fn clear_fetch_exclude(&self) {
-        self.0.lock().unwrap().mojang_mut().clear_fetch_exclude();
+    fn clear_fetch_exclude(&self) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().clear_fetch_exclude();
+        Ok(())
     }
 
     #[getter]
-    fn demo(&self) -> bool {
-        self.0.lock().unwrap().mojang().demo()
+    fn demo(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().demo())
     }
 
     #[setter]
-    fn set_demo(&self, demo: bool) {
-        self.0.lock().unwrap().mojang_mut().set_demo(demo);
+    fn set_demo(&self, demo: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_demo(demo);
+        Ok(())
     }
 
     #[getter]
-    fn quick_play(&self) -> Option<PyQuickPlay> {
-        self.0.lock().unwrap().mojang().quick_play().map(|m| match m {
+    fn quick_play(&self) -> PyResult<Option<PyQuickPlay>> {
+        Ok(self.0.lock()?.mojang().quick_play().map(|m| match m {
             QuickPlay::Path { path } => PyQuickPlay::Path { path: path.clone() },
             QuickPlay::Singleplayer { name } => PyQuickPlay::Singleplayer { name: name.clone() },
             QuickPlay::Multiplayer { host, port } => PyQuickPlay::Multiplayer { host: host.clone(), port: *port },
             QuickPlay::Realms { id } => PyQuickPlay::Realms { id: id.clone() },
-        })
+        }))
     }
 
     #[setter]
-    fn set_quick_play(&self, quick_play: Option<PyQuickPlay>) {
-        let mut guard = self.0.lock().unwrap();
+    fn set_quick_play(&self, quick_play: Option<PyQuickPlay>) -> PyResult<()> {
+        let mut guard = self.0.lock()?;
         match quick_play {
             None => {
                 guard.mojang_mut().remove_quick_play();
@@ -246,16 +248,17 @@ impl PyInstaller {
                 });
             }
         }
+        Ok(())
     }
 
     #[getter]
-    fn resolution(&self) -> Option<(u16, u16)> {
-        self.0.lock().unwrap().mojang().resolution()
+    fn resolution(&self) -> PyResult<Option<(u16, u16)>> {
+        Ok(self.0.lock()?.mojang().resolution())
     }
 
     #[setter]
-    fn set_resolution(&self, resolution: Option<(u16, u16)>) {
-        let mut guard = self.0.lock().unwrap();
+    fn set_resolution(&self, resolution: Option<(u16, u16)>) -> PyResult<()> {
+        let mut guard = self.0.lock()?;
         match resolution {
             Some((width, height)) => {
                 guard.mojang_mut().set_resolution(width, height);
@@ -264,130 +267,145 @@ impl PyInstaller {
                 guard.mojang_mut().remove_resolution();
             }
         }
+        Ok(())
     }
 
     #[getter]
-    fn disable_multiplayer(&self) -> bool {
-        self.0.lock().unwrap().mojang().disable_multiplayer()
+    fn disable_multiplayer(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().disable_multiplayer())
     }
 
     #[setter]
-    fn set_disable_multiplayer(&self, disable_multiplayer: bool) {
-        self.0.lock().unwrap().mojang_mut().set_disable_multiplayer(disable_multiplayer);
+    fn set_disable_multiplayer(&self, disable_multiplayer: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_disable_multiplayer(disable_multiplayer);
+        Ok(())
     }
 
     #[getter]
-    fn disable_chat(&self) -> bool {
-        self.0.lock().unwrap().mojang().disable_chat()
+    fn disable_chat(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().disable_chat())
     }
 
     #[setter]
-    fn set_disable_chat(&self, disable_chat: bool) {
-        self.0.lock().unwrap().mojang_mut().set_disable_chat(disable_chat);
+    fn set_disable_chat(&self, disable_chat: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_disable_chat(disable_chat);
+        Ok(())
     }
 
     #[getter]
-    fn auth_uuid(&self) -> PyUuid {
-        self.0.lock().unwrap().mojang().auth_uuid().into()
+    fn auth_uuid(&self) -> PyResult<PyUuid> {
+        Ok(self.0.lock()?.mojang().auth_uuid().into())
     }
 
     #[getter]
-    fn auth_username(&self) -> String {
-        self.0.lock().unwrap().mojang().auth_username().to_string()
+    fn auth_username(&self) -> PyResult<String> {
+        Ok(self.0.lock()?.mojang().auth_username().to_string())
     }
 
-    fn set_auth_offline(&self, uuid: PyUuid, username: String) {
-        self.0.lock().unwrap().mojang_mut().set_auth_offline(uuid.into(), username);
+    fn set_auth_offline(&self, uuid: PyUuid, username: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_offline(uuid.into(), username);
+        Ok(())
     }
 
-    fn set_auth_offline_uuid(&self, uuid: PyUuid) {
-        self.0.lock().unwrap().mojang_mut().set_auth_offline_uuid(uuid.into());
+    fn set_auth_offline_uuid(&self, uuid: PyUuid) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_offline_uuid(uuid.into());
+        Ok(())
     }
 
-    fn set_auth_offline_username(&self, username: String) {
-        self.0.lock().unwrap().mojang_mut().set_auth_offline_username(username);
+    fn set_auth_offline_username(&self, username: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_offline_username(username);
+        Ok(())
     }
 
-    fn set_auth_offline_username_legacy(&self, username: String) {
-        self.0.lock().unwrap().mojang_mut().set_auth_offline_username_legacy(username);
+    fn set_auth_offline_username_legacy(&self, username: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_offline_username_legacy(username);
+        Ok(())
     }
 
-    fn set_auth_offline_hostname(&self) {
-        self.0.lock().unwrap().mojang_mut().set_auth_offline_hostname();
+    fn set_auth_offline_hostname(&self) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_offline_hostname();
+        Ok(())
     }
 
-    fn set_auth_msa(&self, account: PyRef<'_, msa::PyAccount>) {
-        self.0.lock().unwrap().mojang_mut().set_auth_msa(&account.0);
+    fn set_auth_msa(&self, account: PyRef<'_, msa::PyAccount>) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_auth_msa(&account.0);
+        Ok(())
     }
     
     #[getter]
-    fn client_id(&self) -> String {
-        self.0.lock().unwrap().mojang().client_id().to_string()
+    fn client_id(&self) -> PyResult<String> {
+        Ok(self.0.lock()?.mojang().client_id().to_string())
     }
 
     #[setter]
-    fn set_client_id(&self, client_id: String) {
-        self.0.lock().unwrap().mojang_mut().set_client_id(client_id);
+    fn set_client_id(&self, client_id: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_client_id(client_id);
+        Ok(())
     }
 
     #[getter]
-    fn fix_legacy_quick_play(&self) -> bool {
-        self.0.lock().unwrap().mojang().fix_legacy_quick_play()
+    fn fix_legacy_quick_play(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().fix_legacy_quick_play())
     }
 
     #[setter]
-    fn set_fix_legacy_quick_play(&self, fix: bool) {
-        self.0.lock().unwrap().mojang_mut().set_fix_legacy_quick_play(fix);
+    fn set_fix_legacy_quick_play(&self, fix: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_fix_legacy_quick_play(fix);
+        Ok(())
     }
 
     #[getter]
-    fn fix_legacy_proxy(&self) -> bool {
-        self.0.lock().unwrap().mojang().fix_legacy_proxy()
+    fn fix_legacy_proxy(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().fix_legacy_proxy())
     }
 
     #[setter]
-    fn set_fix_legacy_proxy(&self, fix: bool) {
-        self.0.lock().unwrap().mojang_mut().set_fix_legacy_proxy(fix);
+    fn set_fix_legacy_proxy(&self, fix: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_fix_legacy_proxy(fix);
+        Ok(())
     }
 
     #[getter]
-    fn fix_legacy_merge_sort(&self) -> bool {
-        self.0.lock().unwrap().mojang().fix_legacy_merge_sort()
+    fn fix_legacy_merge_sort(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().fix_legacy_merge_sort())
     }
 
     #[setter]
-    fn set_fix_legacy_merge_sort(&self, fix: bool) {
-        self.0.lock().unwrap().mojang_mut().set_fix_legacy_merge_sort(fix);
+    fn set_fix_legacy_merge_sort(&self, fix: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_fix_legacy_merge_sort(fix);
+        Ok(())
     }
 
     #[getter]
-    fn fix_legacy_resolution(&self) -> bool {
-        self.0.lock().unwrap().mojang().fix_legacy_resolution()
+    fn fix_legacy_resolution(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().fix_legacy_resolution())
     }
 
     #[setter]
-    fn set_fix_legacy_resolution(&self, fix: bool) {
-        self.0.lock().unwrap().mojang_mut().set_fix_legacy_resolution(fix);
+    fn set_fix_legacy_resolution(&self, fix: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_fix_legacy_resolution(fix);
+        Ok(())
     }
 
     #[getter]
-    fn fix_broken_authlib(&self) -> bool {
-        self.0.lock().unwrap().mojang().fix_broken_authlib()
+    fn fix_broken_authlib(&self) -> PyResult<bool> {
+        Ok(self.0.lock()?.mojang().fix_broken_authlib())
     }
 
     #[setter]
-    fn set_fix_broken_authlib(&self, fix: bool) {
-        self.0.lock().unwrap().mojang_mut().set_fix_broken_authlib(fix);
+    fn set_fix_broken_authlib(&self, fix: bool) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_fix_broken_authlib(fix);
+        Ok(())
     }
 
     #[getter]
-    fn fix_lwjgl(&self) -> Option<String> {
-        self.0.lock().unwrap().mojang().fix_lwjgl().map(str::to_string)
+    fn fix_lwjgl(&self) -> PyResult<Option<String>> {
+        Ok(self.0.lock()?.mojang().fix_lwjgl().map(str::to_string))
     }
 
     #[setter]
-    fn set_fix_lwjgl(&self, lwjgl_version: Option<String>) {
-        let mut guard = self.0.lock().unwrap();
+    fn set_fix_lwjgl(&self, lwjgl_version: Option<String>) -> PyResult<()> {
+        let mut guard = self.0.lock()?;
         match lwjgl_version {
             Some(lwjgl_version) => {
                 guard.mojang_mut().set_fix_lwjgl(lwjgl_version);
@@ -396,12 +414,14 @@ impl PyInstaller {
                 guard.mojang_mut().remove_fix_lwjgl();
             }
         }
+        Ok(())
     }
 
     #[pyo3(signature = (handler = None))]
     fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
-        let mut inst = self.0.lock().unwrap().mojang().clone();
-        handler::install(py, handler, move |h| inst.install(h), err::from_mojang)
+        let mut guard = self.0.lock_install()?;
+        let inst = guard.mojang_mut();
+        handler::install(py, handler, |h| inst.install(h), err::from_mojang)
     }
 
 }
