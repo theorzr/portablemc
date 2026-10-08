@@ -151,7 +151,7 @@ fn dist(target: Option<&str>) -> ExitCode {
         cmd.env_remove(&cargo_var);
     }
     cmd.env("PMC_VERSION_LONG", &version_long);
-    cmd.args(["--color", "always", "build", "--release", "--locked"]);
+    cmd.args(["--color", "always", "build", "--release", "--locked", "-p", "portablemc-cli"]);
     if let Some(target) = target {
         cmd.args(["--target", target]);
     }

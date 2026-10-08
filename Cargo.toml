@@ -37,7 +37,7 @@ regex = { version = "1.11.1", default-features = false, features = ["std", "perf
 
 # Crypto
 sha1 = "0.10.6"
-md5 = "0.7.0" 
+md5 = "0.8.0"
 jsonwebtoken = "10.4.0"
 
 # Data structures
