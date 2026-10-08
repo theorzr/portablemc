@@ -1772,7 +1772,9 @@ dependencies = [
 name = "portablemc-py"
 version = "5.0.5"
 dependencies = [
+ "clap",
  "portablemc",
+ "portablemc-cli",
  "pyo3",
  "uuid",
 ]

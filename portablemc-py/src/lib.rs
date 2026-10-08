@@ -12,6 +12,8 @@ mod mojang;
 mod fabric;
 mod forge;
 
+mod cli;
+
 use pyo3::prelude::*;
 
 
@@ -38,6 +40,8 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let forge = PyModule::new(m.py(), "forge")?;
     forge::py_module(&forge)?;
     m.add_submodule(&forge)?;
+
+    m.add_function(wrap_pyfunction!(cli::py_cli_main, m)?)?;
     
     Ok(())
 

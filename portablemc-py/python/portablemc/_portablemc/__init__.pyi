@@ -1,1 +1,3 @@
 # Native module
+
+def _cli_main(args: list[str]) -> int: ...

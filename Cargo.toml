@@ -1,6 +1,6 @@
 [workspace]
 members = ["xtask", "portablemc", "portablemc-cli", "portablemc-ffi", "portablemc-py"]
-default-members = ["portablemc", "portablemc-cli"]
+default-members = ["portablemc", "portablemc-cli", "portablemc-py"]
 resolver = "2"
 
 [workspace.package]
@@ -15,6 +15,7 @@ rust-version = "1.88.0"
 
 [workspace.dependencies]
 portablemc = { path = "portablemc", version = "=5.0.5" }
+portablemc-cli = { path = "portablemc-cli", version = "=5.0.5" }
 
 # Utils
 thiserror = "2.0.3"

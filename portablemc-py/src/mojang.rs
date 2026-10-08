@@ -20,7 +20,7 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass(name = "Version", module = "portablemc.mojang", eq)]
+#[pyclass(name = "Version", module = "portablemc.mojang", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PyVersion {
     Release,
@@ -43,7 +43,7 @@ impl From<PyVersionUnion> for Version {
     }
 }
 
-#[pyclass(name = "QuickPlay", module = "portablemc.mojang", eq)]
+#[pyclass(name = "QuickPlay", module = "portablemc.mojang", eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub enum PyQuickPlay {
     Path {

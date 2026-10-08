@@ -18,7 +18,7 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass(name = "Loader", module = "portablemc.fabric", eq)]
+#[pyclass(name = "Loader", module = "portablemc.fabric", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PyLoader {
     Fabric,
@@ -38,7 +38,7 @@ impl From<PyLoader> for Loader {
     }
 }
 
-#[pyclass(name = "GameVersion", module = "portablemc.fabric", eq)]
+#[pyclass(name = "GameVersion", module = "portablemc.fabric", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PyGameVersion {
     Stable,
@@ -61,7 +61,7 @@ impl From<PyGameVersionUnion> for GameVersion {
     }
 }
 
-#[pyclass(name = "LoaderVersion", module = "portablemc.fabric", eq)]
+#[pyclass(name = "LoaderVersion", module = "portablemc.fabric", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PyLoaderVersion {
     Stable,

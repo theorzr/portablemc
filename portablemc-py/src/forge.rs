@@ -16,7 +16,7 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-#[pyclass(name = "Loader", module = "portablemc.forge", eq)]
+#[pyclass(name = "Loader", module = "portablemc.forge", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum PyLoader {
     Forge,
@@ -32,7 +32,7 @@ impl From<PyLoader> for Loader {
     }
 }
 
-#[pyclass(name = "Version", module = "portablemc.forge", eq)]
+#[pyclass(name = "Version", module = "portablemc.forge", eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 enum PyVersion {
     Stable(String),

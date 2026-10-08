@@ -24,7 +24,7 @@ fn py_default_main_dir() -> Option<&'static Path> {
     default_main_dir()
 }
 
-#[pyclass(name = "JvmPolicy", module = "portablemc.base", eq)]
+#[pyclass(name = "JvmPolicy", module = "portablemc.base", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PyJvmPolicy {
     System,
