@@ -15,8 +15,8 @@ class Installer(base.Installer):
 
     def __repr__(self) -> str: ...
 
-    @base.Installer.version.getter
-    def version(self) -> str | Version: ...
+    @property  # type: ignore[override]
+    def version(self) -> str | Version: ...  # pyright: ignore[reportIncompatibleMethodOverride]
     @version.setter
     def version(self, version: str | Version): ...
 

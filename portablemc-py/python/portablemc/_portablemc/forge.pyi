@@ -34,10 +34,10 @@ class Installer(mojang.Installer):
     @loader.setter
     def loader(self, loader: Loader): ...
 
-    @mojang.Installer.version.getter
-    def version(self) -> Version: ...
+    @property  # type: ignore[override]
+    def version(self) -> Version: ...  # pyright: ignore[reportIncompatibleMethodOverride]
     @version.setter
-    def version(self, version: Version): ...
+    def version(self, version: Version): ...  # pyright: ignore[reportIncompatibleMethodOverride]
 
     def install(self, handler: base.Handler | None = None) -> base.Game: ...
 
