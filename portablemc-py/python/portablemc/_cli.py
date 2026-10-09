@@ -2,7 +2,7 @@
 
 import sys
 
-from ._portablemc import _cli_main  # type: ignore
+from ._portablemc import _cli_main
 
 
 def main() -> None:

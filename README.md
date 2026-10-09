@@ -76,6 +76,9 @@ and [docs.rs](https://docs.rs/portablemc).
 cargo add portablemc
 ```
 
+Some examples are available in [`portablemc/examples`](./portablemc/examples/), you
+can run them with `cargo run --example <name>`.
+
 ### PyPI
 
 ![PyPI Version](https://img.shields.io/pypi/v/portablemc)
@@ -84,8 +87,9 @@ If you have a Python toolchain, you can install portablemc strait from
 [PyPI](https://pypi.org/project/portablemc), both API and CLI are embedded in this 
 package. The API is provided by a native module and is very similar to the Rust API
 while taking advantage of the class inheritance and standard types of Python.
-You can read [the stub file](./portablemc-py/python/portablemc/_portablemc/)
-for more information about the actual interface.
+You can read [the stub files](./portablemc-py/python/portablemc/_portablemc/)
+for more information about the actual interface, and some examples are available in
+[`portablemc-py/examples`](./portablemc-py/examples/).
 
 ```sh
 pip install portablemc

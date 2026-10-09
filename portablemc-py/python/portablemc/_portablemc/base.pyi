@@ -1,4 +1,4 @@
-from typing import Callable
+from functools import partial
 from typing_extensions import Self
 from os import PathLike
 from pathlib import Path
@@ -215,7 +215,7 @@ class Game:
     def args(self) -> list[str | Path]:
         """Return the full command line, starting with the JVM executable."""
 
-    def command(self) -> Callable[..., Popen[bytes]]:
+    def command(self) -> partial[Popen[bytes]]:
         """Return a partial `subprocess.Popen` constructor with the command line and
         working directory already set, further arguments are given to `Popen`."""
 
