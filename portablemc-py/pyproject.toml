@@ -4,7 +4,11 @@ build-backend = "maturin"
 
 [project]
 name = "portablemc"
-requires-python = ">=3.8"
+description = "Cross platform command line utility for launching Minecraft quickly and reliably with included support for Mojang versions and popular mod loaders."
+readme = "../README.md"
+license = "Apache-2.0"
+authors = [{ name = "Théo Rozier", email = "contact@theorozier.fr" }]
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
@@ -12,8 +16,14 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.urls]
+Homepage = "https://github.com/theorzr/portablemc"
+Repository = "https://github.com/theorzr/portablemc"
+
+[project.scripts]
+portablemc = "portablemc._cli:main"
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 module-name = "portablemc._portablemc"
 python-source = "python"
-include = ["*"]

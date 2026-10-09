@@ -10,12 +10,14 @@ a Rust crate for developers ~~and bindings for C and Python~~ (yet to come).
 - [Installation](#installation)
   - [Binaries](#binaries)
   - [Cargo](#cargo)
+  - [PyPI](#pypi)
   - [Linux packages](#linux-packages)
     - [Arch Linux](#arch-linux)
     - [NixOS](#nixos)
 - [Usage](#usage)
 - [Contribute](#contribute)
   - [Repositories](#repositories)
+  - [Releasing](#releasing)
   - [Contributors](#contributors)
   - [Sponsors](#sponsors)
 - [Rust documentation ⇗](https://docs.rs/portablemc/latest/portablemc)
@@ -55,7 +57,7 @@ You can download the full PGP certificate online:
 
 ### Cargo
 
-![Crates.io Version](https://img.shields.io/crates/v/portablemc-cli)
+![Crates.io Version](https://img.shields.io/crates/v/portablemc-cli) ![docs.rs](https://img.shields.io/docsrs/portablemc)
 
 If you have a Rust toolchain with Cargo, you can build and install PortableMC and its 
 CLI straight from [crates.io](https://crates.io/crates/portablemc-cli), this is where 
@@ -67,10 +69,32 @@ cargo install portablemc-cli
 ```
 
 If you are a developer willing to use PortableMC as a library to develop your own 
-launcher, it is also available on [crates.io](https://crates.io/crates/portablemc).
+launcher, it is also available on [crates.io](https://crates.io/crates/portablemc)
+and [docs.rs](https://docs.rs/portablemc).
 
 ```sh
 cargo add portablemc
+```
+
+Some examples are available in [`portablemc/examples`](./portablemc/examples/), you
+can run them with `cargo run --example <name>`.
+
+### PyPI
+
+![PyPI Version](https://img.shields.io/pypi/v/portablemc)
+
+If you have a Python toolchain, you can install portablemc strait from 
+[PyPI](https://pypi.org/project/portablemc), both API and CLI are embedded in this 
+package. The API is provided by a native module and is very similar to the Rust API
+while taking advantage of the class inheritance and standard types of Python.
+You can read [the stub files](./portablemc-py/python/portablemc/_portablemc/)
+for more information about the actual interface, and some examples are available in
+[`portablemc-py/examples`](./portablemc-py/examples/).
+
+```sh
+pip install portablemc
+# or... pipx run portablemc
+# or... uvx portablemc (or inside venv: uv pip install portablemc)
 ```
 
 ### Linux packages

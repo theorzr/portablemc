@@ -1,11 +1,11 @@
 [workspace]
 members = ["xtask", "portablemc", "portablemc-cli", "portablemc-ffi", "portablemc-py"]
-default-members = ["portablemc", "portablemc-cli"]
+default-members = ["portablemc", "portablemc-cli", "portablemc-py"]
 resolver = "2"
 
 [workspace.package]
 edition = "2024"
-version = "5.0.5"
+version = "5.0.6"
 authors = ["Théo Rozier <contact@theorozier.fr>"]
 homepage = "https://github.com/theorzr/portablemc"
 repository = "https://github.com/theorzr/portablemc"
@@ -14,7 +14,8 @@ readme = "README.md"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-portablemc = { path = "portablemc", version = "=5.0.5" }
+portablemc = { path = "portablemc", version = "=5.0.6" }
+portablemc-cli = { path = "portablemc-cli", version = "=5.0.6" }
 
 # Utils
 thiserror = "2.0.3"
@@ -36,7 +37,7 @@ regex = { version = "1.11.1", default-features = false, features = ["std", "perf
 
 # Crypto
 sha1 = "0.10.6"
-md5 = "0.7.0" 
+md5 = "0.8.0"
 jsonwebtoken = "10.4.0"
 
 # Data structures

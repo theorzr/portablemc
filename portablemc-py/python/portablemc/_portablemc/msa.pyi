@@ -1,6 +1,8 @@
-from typing import Self, Iterator
+from typing import Iterator
+from typing_extensions import Self
 from uuid import UUID
 from os import PathLike
+from pathlib import Path
 
 
 class Auth:
@@ -8,6 +10,14 @@ class Auth:
     def __new__(cls, app_id: str) -> Self: ...
 
     def __repr__(self) -> str: ...
+
+    @property
+    def app_id(self) -> str: ...
+
+    @property
+    def language_code(self) -> str | None: ...
+    @language_code.setter
+    def language_code(self, code: str): ...
 
     def request_device_code(self) -> DeviceCodeFlow: ...
 
@@ -17,13 +27,16 @@ class DeviceCodeFlow:
     def __repr__(self) -> str: ...
 
     @property
+    def app_id(self) -> str: ...
+    @property
     def user_code(self) -> str: ...
     @property
     def verification_uri(self) -> str: ...
     @property
     def message(self) -> str: ...
 
-    def wait(self) -> Account: ...
+    def wait(self) -> Account:
+        """Wait for the user to authenticate, the GIL is released while waiting."""
 
 
 class Account:
@@ -51,9 +64,9 @@ class Database:
     def __new__(cls, file: str | PathLike[str]) -> Self: ...
 
     def __repr__(self) -> str: ...
-    
+
     @property
-    def file(self) -> str: ...
+    def file(self) -> Path: ...
 
     def load_iter(self) -> Iterator[Account]: ...
 
@@ -62,5 +75,30 @@ class Database:
 
     def remove_from_uuid(self, uuid: UUID) -> Account | None: ...
     def remove_from_username(self, username: str) -> Account | None: ...
-    
+
     def store(self, account: Account) -> None: ...
+
+
+class AuthError(Exception):
+    """Base class for all authentication errors."""
+
+class AuthDeclinedError(AuthError): ...
+
+class AuthTimedOutError(AuthError): ...
+
+class AuthOutdatedTokenError(AuthError):
+    """The token is outdated when requesting the profile, it can be refreshed."""
+
+class AuthDoesNotOwnGameError(AuthError): ...
+
+class AuthInvalidStatusError(AuthError):
+    status: int
+
+
+class DatabaseError(Exception):
+    """Base class for all account database errors, the cause is set to an `OSError`
+    for I/O errors."""
+
+class DatabaseCorruptedError(DatabaseError): ...
+
+class DatabaseWriteFailedError(DatabaseError): ...

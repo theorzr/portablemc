@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use portablemc::msa::{Account, Auth, Database, DatabaseIter, DeviceCodeFlow};
 
 use crate::uuid::PyUuid;
+use crate::err;
 
 
 /// Define the `_portablemc.msa` submodule.
@@ -14,11 +14,12 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyDeviceCodeFlow>()?;
     m.add_class::<PyAccount>()?;
     m.add_class::<PyDatabase>()?;
+    err::add_msa(m)?;
     Ok(())
 }
 
 
-#[pyclass(name = "Auth", module = "portablemc.msa", frozen)]
+#[pyclass(name = "Auth", module = "portablemc.msa")]
 pub struct PyAuth(pub Auth);
 
 #[pymethods]
@@ -39,10 +40,20 @@ impl PyAuth {
         self.0.app_id()
     }
 
-    fn request_device_code(&self) -> PyResult<PyDeviceCodeFlow> {
-        self.0.request_device_code()
+    #[getter]
+    fn language_code(&self) -> Option<&str> {
+        self.0.language_code()
+    }
+
+    #[setter]
+    fn set_language_code(&mut self, code: String) {
+        self.0.set_language_code(code);
+    }
+
+    fn request_device_code(&self, py: Python<'_>) -> PyResult<PyDeviceCodeFlow> {
+        py.detach(|| self.0.request_device_code())
             .map(PyDeviceCodeFlow)
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_auth(py, e))
     }
 
 }
@@ -85,10 +96,10 @@ impl PyDeviceCodeFlow {
         self.0.message()
     }
 
-    fn wait(&self) -> PyResult<PyAccount> {
-        self.0.wait()
+    fn wait(&self, py: Python<'_>) -> PyResult<PyAccount> {
+        py.detach(|| self.0.wait())
             .map(PyAccount)
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_auth(py, e))
     }
 
 }
@@ -137,14 +148,14 @@ impl PyAccount {
         self.0.xuid()
     }
 
-    fn request_profile(&mut self) -> PyResult<()> {
-        self.0.request_profile()
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+    fn request_profile(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.0.request_profile())
+            .map_err(|e| err::from_auth(py, e))
     }
 
-    fn request_refresh(&mut self) -> PyResult<()> {
-        self.0.request_refresh()
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+    fn request_refresh(&mut self, py: Python<'_>) -> PyResult<()> {
+        py.detach(|| self.0.request_refresh())
+            .map_err(|e| err::from_auth(py, e))
     }
 
 }
@@ -172,39 +183,40 @@ impl PyDatabase {
         self.0.file()
     }
 
-    fn load_iter(&self) -> PyResult<PyDatabaseIter> {
-        self.0.load_iter()
+    fn load_iter(&self, py: Python<'_>) -> PyResult<PyDatabaseIter> {
+        py.detach(|| self.0.load_iter())
             .map(PyDatabaseIter)
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_database(py, e))
     }
 
-    fn load_from_uuid(&self, uuid: PyUuid) -> PyResult<Option<PyAccount>> {
-        self.0.load_from_uuid(uuid.into())
+    fn load_from_uuid(&self, py: Python<'_>, uuid: PyUuid) -> PyResult<Option<PyAccount>> {
+        py.detach(|| self.0.load_from_uuid(uuid.into()))
             .map(|acc| acc.map(PyAccount))
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_database(py, e))
     }
 
-    fn load_from_username(&self, username: String) -> PyResult<Option<PyAccount>> {
-        self.0.load_from_username(&username)
+    fn load_from_username(&self, py: Python<'_>, username: String) -> PyResult<Option<PyAccount>> {
+        py.detach(|| self.0.load_from_username(&username))
             .map(|acc| acc.map(PyAccount))
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_database(py, e))
     }
 
-    fn remove_from_uuid(&self, uuid: PyUuid) -> PyResult<Option<PyAccount>> {
-        self.0.remove_from_uuid(uuid.into())
+    fn remove_from_uuid(&self, py: Python<'_>, uuid: PyUuid) -> PyResult<Option<PyAccount>> {
+        py.detach(|| self.0.remove_from_uuid(uuid.into()))
             .map(|acc| acc.map(PyAccount))
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_database(py, e))
     }
 
-    fn remove_from_username(&self, username: String) -> PyResult<Option<PyAccount>> {
-        self.0.remove_from_username(&username)
+    fn remove_from_username(&self, py: Python<'_>, username: String) -> PyResult<Option<PyAccount>> {
+        py.detach(|| self.0.remove_from_username(&username))
             .map(|acc| acc.map(PyAccount))
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+            .map_err(|e| err::from_database(py, e))
     }
 
-    fn store(&self, account: PyRef<'_, PyAccount>) -> PyResult<()> {
-        self.0.store(account.0.clone())
-            .map_err(|e| PyValueError::new_err(format!("{e}")))
+    fn store(&self, py: Python<'_>, account: PyRef<'_, PyAccount>) -> PyResult<()> {
+        let account = account.0.clone();
+        py.detach(|| self.0.store(account))
+            .map_err(|e| err::from_database(py, e))
     }
 
 }

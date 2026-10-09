@@ -293,7 +293,7 @@ impl Installer {
         let mut context = md5::Context::new();
         context.write_fmt(format_args!("OfflinePlayer:{}", self.inner.auth_username)).unwrap();
         
-        self.inner.auth_uuid = uuid::Builder::from_bytes(context.compute().0)
+        self.inner.auth_uuid = uuid::Builder::from_bytes(context.finalize().0)
             .with_variant(uuid::Variant::RFC4122)
             .with_version(uuid::Version::Md5)
             .into_uuid();
