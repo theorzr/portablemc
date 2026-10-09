@@ -10,6 +10,10 @@
 
 #![deny(unsafe_code)]
 
+// Doc comments on clap arguments are written as CLI help text, not rustdoc markup.
+#![allow(rustdoc::invalid_html_tags, rustdoc::bare_urls, rustdoc::broken_intra_doc_links)]
+#![doc(hidden)]
+
 #[cfg(feature = "__unstable")]
 pub mod parse;
 #[cfg(feature = "__unstable")]
