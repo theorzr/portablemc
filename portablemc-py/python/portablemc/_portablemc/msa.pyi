@@ -36,7 +36,8 @@ class DeviceCodeFlow:
     def message(self) -> str: ...
 
     def wait(self) -> Account:
-        """Wait for the user to authenticate, the GIL is released while waiting."""
+        """Wait for the user to authenticate, the GIL is released while waiting and it can
+        be interrupted by signals such as Ctrl-C."""
 
 
 class Account:

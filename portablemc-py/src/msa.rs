@@ -1,5 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::Duration;
+use std::thread;
 
+use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 
 use portablemc::msa::{Account, Auth, Database, DatabaseIter, DeviceCodeFlow};
@@ -97,9 +101,30 @@ impl PyDeviceCodeFlow {
     }
 
     fn wait(&self, py: Python<'_>) -> PyResult<PyAccount> {
-        py.detach(|| self.0.wait())
-            .map(PyAccount)
-            .map_err(|e| err::from_auth(py, e))
+
+        // The flow is waited in a background thread, so that this thread can regularly
+        // check for signals (such as Ctrl-C) and raise them. If interrupted, the
+        // background thread keeps polling until the device code expires, and its
+        // result is dropped.
+        let (tx, mut rx) = mpsc::channel();
+        let flow = self.0.clone();
+        thread::spawn(move || {
+            let _ = tx.send(flow.wait());
+        });
+
+        loop {
+            let res;
+            (rx, res) = py.detach(move || {
+                let res = rx.recv_timeout(Duration::from_millis(100));
+                (rx, res)
+            });
+            match res {
+                Ok(res) => break res.map(PyAccount).map_err(|e| err::from_auth(py, e)),
+                Err(RecvTimeoutError::Timeout) => py.check_signals()?,
+                Err(RecvTimeoutError::Disconnected) => break Err(PyRuntimeError::new_err("authentication thread panicked")),
+            }
+        }
+
     }
 
 }
