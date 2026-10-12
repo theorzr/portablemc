@@ -139,9 +139,13 @@ jobs:
   # Python wheels are built for the same platforms as the binaries, except for 32-bit 
   # ARM Linux where PyPI only accepts ARMv7 wheels. Linux wheels are built in manylinux
   # containers, a Python interpreter is required for other platforms.
+  # If this tag ends with -test, the version is suffixed with a unique development
+  # release number, because TestPyPI never accepts a file twice, even after deletion.
   build-py:
     name: Build Python ${{ matrix.target }} on ${{ matrix.image }}
-    needs: test-all
+    needs:
+      - fetch-version
+      - test-all
     runs-on: ${{ matrix.image }}
 
     strategy:
@@ -173,6 +177,14 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Set test version
+        if: ${{ endsWith(github.ref, '-test') }}
+        shell: bash
+        run: |
+          sed -i.bak 's/^dynamic = \["version"\]$/version = "${{ needs.fetch-version.outputs.version }}.dev${{ github.run_id }}"/' portablemc-py/pyproject.toml
+          rm portablemc-py/pyproject.toml.bak
+          grep -q '^version = ' portablemc-py/pyproject.toml
+
       - name: Setup Python
         if: matrix.python-arch != null
         uses: actions/setup-python@v5
@@ -197,11 +209,21 @@ jobs:
 
   build-py-sdist:
     name: Build Python sdist
-    needs: test-all
+    needs:
+      - fetch-version
+      - test-all
     runs-on: ubuntu-24.04
     steps:
 
       - uses: actions/checkout@v4
+
+      - name: Set test version
+        if: ${{ endsWith(github.ref, '-test') }}
+        shell: bash
+        run: |
+          sed -i.bak 's/^dynamic = \["version"\]$/version = "${{ needs.fetch-version.outputs.version }}.dev${{ github.run_id }}"/' portablemc-py/pyproject.toml
+          rm portablemc-py/pyproject.toml.bak
+          grep -q '^version = ' portablemc-py/pyproject.toml
 
       - name: Build sdist
         uses: PyO3/maturin-action@v1
@@ -330,7 +352,7 @@ jobs:
 
   # Python packages are published using PyPI trusted publishing. If this tag ends with
   # -test, we are using it to test workflow, so we publish to TestPyPI instead, existing
-  # files are skipped so that the same version can be tested again.
+  # files are skipped so that a failed run can be re-run.
   publish-py:
     name: Publish Python
     needs:
