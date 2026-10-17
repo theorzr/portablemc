@@ -47,10 +47,10 @@ jobs:
     with:
       include-ignored: ${{ !endsWith(github.ref, '-test') }}
 
-  # We only build if all test passed.
+  # Builds run in parallel of the tests, only the publishing jobs wait for tests.
   build:
     name: Build ${{ matrix.target }} on ${{ matrix.image }}
-    needs: test-all
+    needs: check-version
     runs-on: ${{ matrix.image }}
 
     strategy:
@@ -137,7 +137,7 @@ jobs:
     name: Build Python ${{ matrix.target }} on ${{ matrix.image }}
     needs:
       - fetch-version
-      - test-all
+      - check-version
     runs-on: ${{ matrix.image }}
 
     strategy:
@@ -203,7 +203,7 @@ jobs:
     name: Build Python sdist
     needs:
       - fetch-version
-      - test-all
+      - check-version
     runs-on: ubuntu-24.04
     steps:
 
@@ -241,6 +241,7 @@ jobs:
     name: Release
     needs: 
       - fetch-version
+      - test-all
       - build
     if: ${{ !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
     runs-on: ubuntu-latest
@@ -303,7 +304,9 @@ jobs:
   # only authenticate and do a dry run, because crates.io has no test registry.
   publish-crate:
     name: Publish crates
-    needs: build
+    needs:
+      - test-all
+      - build
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -348,6 +351,7 @@ jobs:
   publish-py:
     name: Publish Python
     needs:
+      - test-all
       - build-py
       - build-py-sdist
     runs-on: ubuntu-24.04
