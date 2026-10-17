@@ -23,6 +23,14 @@ Repository = "https://github.com/theorzr/portablemc"
 [project.scripts]
 portablemc = "portablemc._cli:main"
 
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: requires internet, deselected by default, run with '-m network' or '-m \"\"'"]
+addopts = "-m 'not network'"
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 module-name = "portablemc._portablemc"

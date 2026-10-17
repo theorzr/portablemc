@@ -2,3 +2,5 @@
 /python/**/*.pyd
 /python/**/*.so
 /python/**/__pycache__/
+/dist/
+/tests/**/__pycache__/

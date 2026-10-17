@@ -85,3 +85,29 @@ jobs:
 
       - name: Doc
         run: cargo doc --no-deps
+
+      # Python tests are run against the installed wheel, with the minimum supported
+      # Python version, tests using internet are only run when including ignored.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Build Python wheel
+        working-directory: portablemc-py
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install maturin --group dev
+          maturin build --locked --out dist
+          python -m pip install --no-index --find-links dist portablemc
+
+      - name: Test Python
+        if: ${{ !inputs.include-ignored }}
+        working-directory: portablemc-py
+        run: python -m pytest -v
+
+      # Clearing the default marker filter to also run tests using internet.
+      - name: Test Python (include network)
+        if: ${{ inputs.include-ignored }}
+        working-directory: portablemc-py
+        run: python -m pytest -v -m ""
