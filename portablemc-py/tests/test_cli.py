@@ -3,6 +3,13 @@
 import subprocess
 import sys
 
+import pytest
+
+from portablemc import _portablemc
+
+
+pytestmark = pytest.mark.skipif(not hasattr(_portablemc, "_cli_main"), reason="built without the 'cli' feature")
+
 
 def run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, "-m", "portablemc", *args], capture_output=True, text=True)

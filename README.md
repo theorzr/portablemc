@@ -3,7 +3,7 @@ Cross platform command line utility for launching Minecraft quickly and reliably
 included support for Mojang versions and popular mod loaders. It is also available as 
 a Rust crate for developers ~~and bindings for C and Python~~ (yet to come).
 
-![illustration](doc/illustration.png)
+![illustration](https://raw.githubusercontent.com/theorzr/portablemc/main/doc/illustration.png)
 
 ## Table of contents
 - [Features](#features)

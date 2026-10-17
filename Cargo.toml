@@ -1,6 +1,6 @@
 [workspace]
 members = ["xtask", "portablemc", "portablemc-cli", "portablemc-ffi", "portablemc-py"]
-default-members = ["portablemc", "portablemc-cli", "portablemc-py"]
+default-members = ["portablemc", "portablemc-cli"]
 resolver = "2"
 
 [workspace.package]
@@ -38,7 +38,7 @@ regex = { version = "1.11.1", default-features = false, features = ["std", "perf
 # Crypto
 sha1 = "0.10.6"
 md5 = "0.8.0"
-jsonwebtoken = "10.4.0"
+base64 = "0.22.1"
 
 # Data structures
 indexmap = "2.7.0"
@@ -66,7 +66,7 @@ rustls = { version = "0.23.46", default-features = false, features = ["ring", "s
 
 # CLI
 clap = "4.5.53"
-clap_mangen = "0.2.31"
+clap_mangen = "0.3.3"
 ctrlc = "3.4.5"
 
 # Testing

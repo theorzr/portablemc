@@ -27,8 +27,6 @@ uuid.workspace = true
 
 reqwest.workspace = true
 
-jsonwebtoken.workspace = true
-
 zip.workspace = true
 
 webbrowser.workspace = true
