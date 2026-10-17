@@ -107,7 +107,7 @@ jobs:
         run: python -m pytest -v
 
       # Clearing the default marker filter to also run tests using internet.
-      - name: Test Python (include network)
+      - name: Test Python (include ignored)
         if: ${{ inputs.include-ignored }}
         working-directory: portablemc-py
         run: python -m pytest -v -m ""
