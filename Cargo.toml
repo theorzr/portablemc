@@ -5,7 +5,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
-version = "5.0.5"
+version = "5.0.6"
 authors = ["Théo Rozier <contact@theorozier.fr>"]
 homepage = "https://github.com/theorzr/portablemc"
 repository = "https://github.com/theorzr/portablemc"
@@ -14,7 +14,8 @@ readme = "README.md"
 rust-version = "1.88.0"
 
 [workspace.dependencies]
-portablemc = { path = "portablemc", version = "=5.0.5" }
+portablemc = { path = "portablemc", version = "=5.0.6" }
+portablemc-cli = { path = "portablemc-cli", version = "=5.0.6" }
 
 # Utils
 thiserror = "2.0.3"
@@ -36,17 +37,16 @@ regex = { version = "1.11.1", default-features = false, features = ["std", "perf
 
 # Crypto
 sha1 = "0.10.6"
-md5 = "0.7.0" 
-jsonwebtoken = "10.4.0"
+md5 = "0.8.0"
+base64 = "0.22.1"
 
 # Data structures
 indexmap = "2.7.0"
 elsa = "1.10"
-zip = "6.0.0"
+zip = "9.0.4"
 slab = "0.4.9"
 flate2 = "1.1.5"
 tar = "0.4.44"
-zip-extensions = "0.13.1"
 
 # Sync
 once_cell = "1.20.2"
@@ -62,10 +62,11 @@ windows-registry = "0.6.1"
 # Async
 tokio = "1.52.3"
 reqwest = { version = "0.13.4", default-features = false }
+rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 
 # CLI
 clap = "4.5.53"
-clap_mangen = "0.2.31"
+clap_mangen = "0.3.3"
 ctrlc = "3.4.5"
 
 # Testing

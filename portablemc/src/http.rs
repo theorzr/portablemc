@@ -10,6 +10,9 @@ pub const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PK
 
 /// Get a new client builder for async HTTP(S) requests.
 pub fn builder() -> ClientBuilder {
+    // Reqwest requires a process-wide rustls crypto provider, we install ring unless
+    // the application has already installed its own, so the error is ignored.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     Client::builder().user_agent(USER_AGENT)
 }
 

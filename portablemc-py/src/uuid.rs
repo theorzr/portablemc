@@ -29,9 +29,11 @@ impl From<PyUuid> for Uuid {
     }
 }
 
-impl<'py> FromPyObject<'py> for PyUuid {
+impl<'a, 'py> FromPyObject<'a, 'py> for PyUuid {
 
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+    type Error = PyErr;
+
+    fn extract(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
         
         let mod_uuid = PyModule::import(ob.py(), intern!(ob.py(), "uuid"))?;
         let ty_uuid = mod_uuid.getattr(intern!(ob.py(), "UUID"))?;
@@ -41,7 +43,7 @@ impl<'py> FromPyObject<'py> for PyUuid {
         }
 
         let bytes = ob.getattr(intern!(ob.py(), "bytes"))?
-            .downcast_into::<PyBytes>()?;
+            .cast_into::<PyBytes>()?;
 
         match Uuid::from_slice(bytes.as_bytes()) {
             Ok(uuid) => Ok(Self(uuid)),

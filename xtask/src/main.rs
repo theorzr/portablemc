@@ -2,15 +2,13 @@ use std::process::{Command, ExitCode};
 use std::fmt::Write as _;
 use std::ffi::{OsStr, OsString};
 use std::path::Path;
-use std::{env, fs};
+use std::{env, fs, io};
 use std::fs::File;
 
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
-use zip_extensions::default_entry_handler::DefaultEntryHandler;
-use zip_extensions::zip_writer_extensions::ZipWriterExtensions;
 
 
 fn main() -> ExitCode {
@@ -151,7 +149,7 @@ fn dist(target: Option<&str>) -> ExitCode {
         cmd.env_remove(&cargo_var);
     }
     cmd.env("PMC_VERSION_LONG", &version_long);
-    cmd.args(["--color", "always", "build", "--release", "--locked"]);
+    cmd.args(["--color", "always", "build", "--release", "--locked", "-p", "portablemc-cli"]);
     if let Some(target) = target {
         cmd.args(["--target", target]);
     }
@@ -210,12 +208,19 @@ fn dist(target: Option<&str>) -> ExitCode {
             let archive_file = dist_dir.join(format!("{archive_name}.zip"));
             let archive_write = File::create(&archive_file).unwrap();
             let mut archive_write = ZipWriter::new(archive_write);
-            archive_write.set_comment(readme);
+            archive_write.set_comment(readme).unwrap();
 
             let options = SimpleFileOptions::default()
                 .compression_method(CompressionMethod::Deflated);
 
-            archive_write.create_from_directory_with_options(&archive_dir, |_| options, &DefaultEntryHandler).unwrap();
+            // The archive directory is flat, so we only need to add its files.
+            for entry in fs::read_dir(&archive_dir).unwrap() {
+                let entry = entry.unwrap();
+                archive_write.start_file(entry.file_name().to_string_lossy(), options).unwrap();
+                io::copy(&mut File::open(entry.path()).unwrap(), &mut archive_write).unwrap();
+            }
+
+            archive_write.finish().unwrap();
 
         } else {
 

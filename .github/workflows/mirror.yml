@@ -2,9 +2,15 @@ name: Mirror
 
 on:
   push:
-  create:
   delete:
   workflow_dispatch:
+
+# Each run mirrors the whole repository, so runs must not push concurrently
+# (Codeberg rejects concurrent creation of the same ref), and a single queued
+# run is enough to catch up with any number of intermediate events.
+concurrency:
+  group: mirror
+  cancel-in-progress: false
 
 jobs:
 

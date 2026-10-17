@@ -1,2 +1,5 @@
 [alias]
 xtask = "run --package xtask --"
+
+[target.arm-unknown-linux-gnueabihf]
+linker = "arm-linux-gnueabihf-gcc"

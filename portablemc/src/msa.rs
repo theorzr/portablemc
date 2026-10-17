@@ -12,7 +12,8 @@ use reqwest::{Client, StatusCode};
 use serde_json::json;
 use uuid::Uuid;
 
-use jsonwebtoken::TokenData;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 
 /// Microsoft Account authenticator.
@@ -330,7 +331,7 @@ async fn request_minecraft_account(
     // Now checking coherency...
     if user_res.display_claims.xui.is_empty() 
     || user_res.display_claims.xui != xsts_res.display_claims.xui {
-        return Err(AuthError::Unknown(format!("Invalid or incoherent display claims.")))
+        return Err(AuthError::Unknown("Invalid or incoherent display claims.".to_string()))
     }
 
     let user_hash = xsts_res.display_claims.xui[0].uhs.as_str();
@@ -338,8 +339,7 @@ async fn request_minecraft_account(
 
     // Minecraft with XBL...
     let mc_res = request_minecraft_with_xbl(&client, user_hash, xsts_token).await?;
-    let mc_res_token = decode_jwt_without_validation::<MinecraftToken>(&mc_res.access_token)
-        .map_err(AuthError::new_jwt)?;
+    let mc_res_token = decode_jwt_without_validation::<MinecraftToken>(&mc_res.access_token)?;
     // Minecraft profile...
     let profile_res = request_minecraft_profile(&client, &mc_res.access_token).await?;
 
@@ -349,7 +349,7 @@ async fn request_minecraft_account(
         access_token: mc_res.access_token,
         uuid: profile_res.id,
         username: profile_res.name,
-        xuid: mc_res_token.claims.xuid,
+        xuid: mc_res_token.xuid,
     })
 
 }
@@ -463,13 +463,21 @@ async fn request_minecraft_profile(
 
 }
 
-fn decode_jwt_without_validation<T>(token: &str) -> jsonwebtoken::errors::Result<TokenData<T>>
+/// Decode the payload of a JWT, we don't want to validate the token (we don't have the 
+/// key anyway), just decode its data.
+fn decode_jwt_without_validation<T>(token: &str) -> Result<T, AuthError>
 where 
     T: serde::de::DeserializeOwned,
 {
-    // We don't want to validate the token, just decode its data.
-    // See https://github.com/Keats/jsonwebtoken/issues/277.
-    jsonwebtoken::dangerous::insecure_decode(token.as_bytes())
+    let mut parts = token.split('.');
+    let (Some(_header), Some(payload), Some(_signature), None) = 
+        (parts.next(), parts.next(), parts.next(), parts.next()) else {
+        return Err(AuthError::Unknown("Malformed token.".to_string()));
+    };
+    let payload = URL_SAFE_NO_PAD.decode(payload)
+        .map_err(|_| AuthError::Unknown("Invalid token payload encoding.".to_string()))?;
+    serde_json::from_slice(&payload)
+        .map_err(|e| AuthError::Internal(Box::new(e)))
 }
 
 /// The error type containing one error for each failed entry in a download batch.
@@ -501,7 +509,7 @@ pub enum AuthError {
     /// 
     /// - [`reqwest::Error`] for any error related to HTTP requests.
     /// 
-    /// - [`jsonwebtoken::errors::Error`] for any error related to decoding JWTs.
+    /// - [`serde_json::Error`] for any error related to decoding JWTs payload.
     #[error("internal: {0}")]
     Internal(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
@@ -510,11 +518,6 @@ impl AuthError {
 
     #[inline]
     fn new_reqwest(e: reqwest::Error) -> Self {
-        Self::Internal(Box::new(e))
-    }
-
-    #[inline]
-    fn new_jwt(e: jsonwebtoken::errors::Error) -> Self {
         Self::Internal(Box::new(e))
     }
 
@@ -912,4 +915,22 @@ impl From<Account> for DatabaseDataAccount {
             xuid: value.xuid,
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn decode_jwt() {
+        // Header '{"alg":"none"}' and payload '{"xuid":"2535"}', unpadded base64url.
+        let token = decode_jwt_without_validation::<MinecraftToken>("eyJhbGciOiJub25lIn0.eyJ4dWlkIjoiMjUzNSJ9.c2ln").unwrap();
+        assert_eq!(token.xuid, "2535");
+        assert!(matches!(decode_jwt_without_validation::<MinecraftToken>("eyJ4dWlkIjoiMjUzNSJ9"), Err(AuthError::Unknown(_))));
+        assert!(matches!(decode_jwt_without_validation::<MinecraftToken>("a.b.c.d"), Err(AuthError::Unknown(_))));
+        assert!(matches!(decode_jwt_without_validation::<MinecraftToken>("a.!!.c"), Err(AuthError::Unknown(_))));
+        assert!(matches!(decode_jwt_without_validation::<MinecraftToken>("a.eyJhbGciOiJub25lIn0.c"), Err(AuthError::Internal(e)) if e.is::<serde_json::Error>()));
+    }
+
 }

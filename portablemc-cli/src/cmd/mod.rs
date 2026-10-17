@@ -980,10 +980,6 @@ pub fn log_any_error(cli: &mut Cli, error: &(dyn std::error::Error + 'static), f
             .newline()
             .line(level, format_args!("{indent}ZIP error: {error}"));
 
-    } else if let Some(error) = error.downcast_ref::<jsonwebtoken::errors::Error>() {
-        cli.out.log("error_jwt")
-            .line(level, format_args!("{indent}JWT error: {error}"));
-
     } else {
         cli.out.log("error_unknown")
             .arg(error)
