@@ -24,7 +24,8 @@ chrono.workspace = true
 xmlparser.workspace = true
 
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "fs", "time", "net", "macros"] }
-reqwest = { workspace = true, features = ["charset", "http2", "system-proxy", "json", "form"] }
+reqwest = { workspace = true, features = ["charset", "http2", "system-proxy", "json", "form", "rustls-no-provider"] }
+rustls.workspace = true
 
 indexmap.workspace = true
 elsa.workspace = true
@@ -37,19 +38,15 @@ gethostname.workspace = true
 dunce.workspace = true
 os_info.workspace = true
 dirs.workspace = true
-windows-registry.workspace = true
 
 sha1.workspace = true
 md5.workspace = true
-jsonwebtoken.workspace = true
+base64.workspace = true
 
 zip.workspace = true
 
-[target.'cfg(not(all(windows, target_arch = "x86")))'.dependencies]
-reqwest = { workspace = true, features = ["rustls"] }
-
-[target.'cfg(all(windows, target_arch = "x86"))'.dependencies]
-reqwest = { workspace = true, features = ["native-tls"] }
+[target.'cfg(windows)'.dependencies]
+windows-registry.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

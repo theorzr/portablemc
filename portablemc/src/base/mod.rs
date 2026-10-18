@@ -839,7 +839,7 @@ impl Installer {
 
                         io::copy(&mut file, &mut dst_writer)
                             .map_err(|e| Error::new_io(e, format!("extract: {}, from: {}, to: {}", 
-                                file.name(),
+                                file_path.display(),
                                 src_file.display(),
                                 dst_file.display())))?;
 

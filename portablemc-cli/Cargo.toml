@@ -27,8 +27,6 @@ uuid.workspace = true
 
 reqwest.workspace = true
 
-jsonwebtoken.workspace = true
-
 zip.workspace = true
 
 webbrowser.workspace = true
@@ -37,7 +35,15 @@ clap = { workspace = true, features = ["derive", "wrap_help", "env"] }
 clap_mangen.workspace = true
 ctrlc.workspace = true
 
+# Unstable API, see its documentation.
+[lib]
+name = "portablemc_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "portablemc"
 path = "src/main.rs"
 doc = false
+
+[features]
+__unstable = []

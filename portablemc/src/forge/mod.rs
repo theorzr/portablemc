@@ -135,7 +135,10 @@ impl Installer {
 
         // Adding it to fetch exclude, we don't want to try to fetch it from Mojang's 
         // manifest: it's pointless and it avoids trying to fetch the manifest.
-        mojang.add_fetch_exclude(FetchExclude::Exact(root_version.clone()));
+        // This installer should be idempotent so we don't add it twice!
+        if !mojang.fetch_excludes().iter().any(|exclude| matches!(exclude, FetchExclude::Exact(v) if v == &root_version)) {
+            mojang.add_fetch_exclude(FetchExclude::Exact(root_version.clone()));
+        }
 
         // The goal is to run the installer a first time, check potential errors to 
         // know if the error is related to the loader, or not.
