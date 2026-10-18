@@ -9,6 +9,7 @@ class Loader(Enum):
     Quilt = auto()
     LegacyFabric = auto()
     Babric = auto()
+    Ornithe = auto()
 
 
 class GameVersion(Enum):

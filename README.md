@@ -23,7 +23,7 @@ a Rust crate for developers ~~and bindings for C and Python~~ (yet to come).
 ## Features
 
 - **Install and launch a version in 1 command.**
-- Supports Mojang versions, and many mod loaders which are installed seamlessly: **Forge**, **NeoForge**, **Fabric**, Quilt, LegacyFabric and Babric.
+- Supports Mojang versions, and many mod loaders which are installed seamlessly: **Forge**, **NeoForge**, **Fabric**, Quilt, LegacyFabric, Babric and Ornithe.
 - Automatically fixing known issues of the game, can be disabled if desired;
 - Options for supporting unsupported systems and architectures, such as RaspberryPi/Arm;
 - And more flags and options to configure the launch...

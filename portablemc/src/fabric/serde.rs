@@ -29,6 +29,6 @@ pub struct Intermediary {
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct GameLoader {
     pub loader: Loader,
-    pub intermediary: Intermediary,
+    pub intermediary: Option<Intermediary>,  // Absent for some APIs (ornithe)
     // missing: launcherMeta,
 }
