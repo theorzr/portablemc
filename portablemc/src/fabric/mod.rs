@@ -13,7 +13,7 @@ use crate::download;
 
 
 /// An installer for supporting mod loaders that are Fabric or like it (Quilt, 
-/// LegacyFabric, Babric). The generic parameter is used to specify the API to use.
+/// LegacyFabric, Babric, Ornithe). The generic parameter is used to specify the API to use.
 #[derive(Debug, Clone)]
 pub struct Installer {
     /// The underlying Mojang installer logic.
@@ -293,6 +293,9 @@ pub enum Loader {
     /// This is the API for the Babric project, which aims to support the Fabric loader 
     /// for Minecraft beta 1.7.3 in particular.
     Babric,
+    /// This is the API for the Ornithe project, which supports the Fabric loader on
+    /// old Mojang versions using its own (gen2) intermediary mappings.
+    Ornithe,
 }
 
 impl Loader {
@@ -303,6 +306,7 @@ impl Loader {
             Loader::Quilt => "quilt",
             Loader::LegacyFabric => "legacyfabric",
             Loader::Babric => "babric",
+            Loader::Ornithe => "ornithe",
         }
     }
 
@@ -363,6 +367,8 @@ pub struct Api {
     /// - `/versions/loader/<game_version>/<loader_loader>` (returning status 400 or 404)
     /// - `/versions/loader/<game_version>/<loader_loader>/profile/json` (returning status 400 or 404)
     base_url: &'static str,
+    /// Path segment for loader endpoints, 'loader' except for Ornithe ('fabric-loader').
+    loader_path: &'static str,
 }
 
 impl Api {
@@ -375,7 +381,12 @@ impl Api {
                 Loader::Quilt => "https://meta.quiltmc.org/v3",
                 Loader::LegacyFabric => "https://meta.legacyfabric.net/v2",
                 Loader::Babric => "https://meta.babric.glass-launcher.net/v2",
-            }
+                Loader::Ornithe => "https://meta.ornithemc.net/v3",
+            },
+            loader_path: match loader {
+                Loader::Ornithe => "fabric-loader",
+                _ => "loader",
+            },
         }
     }
 
@@ -418,7 +429,7 @@ impl Api {
     fn raw_request_loader_versions(&self) -> Result<Vec<serde::Loader>> {
         crate::tokio::sync(async move {
             crate::http::client()?
-                .get(format!("{}/versions/loader", self.base_url))
+                .get(format!("{}/versions/{}", self.base_url, self.loader_path))
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send().await?
                 .error_for_status()?
@@ -433,7 +444,7 @@ impl Api {
         
         let ret = crate::tokio::sync(async move {
             crate::http::client()?
-                .get(format!("{}/versions/loader/{game_version}", self.base_url))
+                .get(format!("{}/versions/{}/{game_version}", self.base_url, self.loader_path))
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send().await?
                 .error_for_status()?
@@ -455,7 +466,7 @@ impl Api {
         
         let ret = crate::tokio::sync(async move {
             crate::http::client()?
-                .get(format!("{}/versions/loader/{game_version}", self.base_url))
+                .get(format!("{}/versions/{}/{game_version}", self.base_url, self.loader_path))
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send().await?
                 .error_for_status()?
@@ -478,7 +489,7 @@ impl Api {
         
         let ret = crate::tokio::sync(async move {
             crate::http::client()?
-                .get(format!("{}/versions/loader/{game_version}/{loader_version}/profile/json", self.base_url))
+                .get(format!("{}/versions/{}/{game_version}/{loader_version}/profile/json", self.base_url, self.loader_path))
                 .header(reqwest::header::ACCEPT, "application/json")
                 .send().await?
                 .error_for_status()?
@@ -663,6 +674,12 @@ impl InternalHandler<'_> {
 
         // Force the version id, the prebuilt one might not be exact.
         metadata.id = version.to_string();
+
+        // Ornithe inherits from '<game>-vanilla', which isn't a Mojang version id.
+        if let Some(parent) = metadata.inherits_from.as_mut()
+        && let Some(stripped) = parent.strip_suffix("-vanilla") {
+            *parent = stripped.to_string();
+        }
         base::write_version_metadata(file, &metadata)?;
 
         self.inner.on_event(Event::FetchedVersion { 

@@ -31,6 +31,7 @@ enum PyLoader {
     Quilt,
     LegacyFabric,
     Babric,
+    Ornithe,
 }
 
 impl From<PyLoader> for Loader {
@@ -40,6 +41,7 @@ impl From<PyLoader> for Loader {
             PyLoader::Quilt => Loader::Quilt,
             PyLoader::LegacyFabric => Loader::LegacyFabric,
             PyLoader::Babric => Loader::Babric,
+            PyLoader::Ornithe => Loader::Ornithe,
         }
     }
 }
@@ -139,6 +141,7 @@ impl PyInstaller {
             Loader::Quilt => PyLoader::Quilt,
             Loader::LegacyFabric => PyLoader::LegacyFabric,
             Loader::Babric => PyLoader::Babric,
+            Loader::Ornithe => PyLoader::Ornithe,
         })
     }
 

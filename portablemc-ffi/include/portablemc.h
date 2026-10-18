@@ -36,7 +36,7 @@ typedef struct pmc_game pmc_game;
 typedef struct pmc_moj pmc_moj;
 
 /// An installer for supporting mod loaders that are Fabric or like it (Quilt, 
-/// LegacyFabric, Babric). The generic parameter is used to specify the API to use.
+/// LegacyFabric, Babric, Ornithe). The generic parameter is used to specify the API to use.
 typedef struct pmc_fabric pmc_fabric;
 
 /// An installer that supports Forge and NeoForge mod loaders.
