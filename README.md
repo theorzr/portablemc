@@ -158,13 +158,13 @@ Releasing process is mostly managed by GitHub actions, it reacts to new tags bei
 pushed to the repository by a repository admin. This section is about how to prepare
 the repository for that releasing process.
 
-To start with, every new release, which can be either a patch, minor or major release,
-should have an associated branch that will be merged when releasing is done. It should
-be named `patch-<version>`, or `release-<version>`, and created from `main`. 
-When you have merged everything into that branch and you are ready for doing the release, 
-you should ensure that the project's version has been updated in `Cargo.toml` to match 
-the branch and the tag you are about to create, and then you can create and push a tag 
-named `v<version>`, the GitHub pipeline will trigger automatically.
+To start with, the main branch of this repository is the develop branch, all upcomming
+features that have been validated to be included in the next version are merged into the
+main branch. Simple changes can be pushed directly into it, and merge requests should
+ideally be rebased on main before fast-forward merge. When you think the main branch is 
+ready for doing the release, you should ensure that the project's version has been updated
+in `Cargo.toml` to match the branch and the tag you are about to create, and then you can
+create and push a tag named `v<version>`, the GitHub pipeline will trigger automatically.
 
 If it make sense to have release candidates or pre-releases, this should be handled on 
 the same branch as the real release: you should append `-rc.<num>` or `-pre.<num>` to the
