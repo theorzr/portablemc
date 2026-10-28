@@ -295,7 +295,9 @@ pub enum Loader {
     Babric,
     /// This is the API for the Ornithe project, which supports the Fabric loader on
     /// old Mojang versions using its own (gen2) intermediary mappings.
-    Ornithe,
+    OrnitheFabric,
+    /// Same as [`Self::OrnitheFabric`] but for the Quilt mod loader.
+    OrnitheQuilt,
 }
 
 impl Loader {
@@ -306,7 +308,8 @@ impl Loader {
             Loader::Quilt => "quilt",
             Loader::LegacyFabric => "legacyfabric",
             Loader::Babric => "babric",
-            Loader::Ornithe => "ornithe",
+            Loader::OrnitheFabric => "ornithe-fabric",
+            Loader::OrnitheQuilt => "ornithe-quilt",
         }
     }
 
@@ -381,10 +384,12 @@ impl Api {
                 Loader::Quilt => "https://meta.quiltmc.org/v3",
                 Loader::LegacyFabric => "https://meta.legacyfabric.net/v2",
                 Loader::Babric => "https://meta.babric.glass-launcher.net/v2",
-                Loader::Ornithe => "https://meta.ornithemc.net/v3",
+                Loader::OrnitheFabric |
+                Loader::OrnitheQuilt => "https://meta.ornithemc.net/v3",
             },
             loader_path: match loader {
-                Loader::Ornithe => "fabric-loader",
+                Loader::OrnitheFabric => "fabric-loader",
+                Loader::OrnitheQuilt => "quilt-loader",
                 _ => "loader",
             },
         }

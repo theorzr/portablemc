@@ -161,9 +161,9 @@ pub struct StartArgs {
     /// other Fabric-like loaders, both 'stable' and 'unstable' would be equivalent 
     /// to 'b1.7.3'. See https://babric.github.io/.
     /// 
-    /// - ornithe:[<game-version>[:[<loader-version>]]] => same as 'fabric', but using
-    /// the Ornithe API for missing versions, with its gen2 intermediary mappings.
-    /// See https://ornithemc.net/.
+    /// - ornithe-<fabric|quilt>:[<game-version>[:[<loader-version>]]] => same as 'fabric'
+    /// or 'quilt', but using the Ornithe API for missing versions, with its gen2 
+    /// intermediary mappings. See https://ornithemc.net/.
     /// 
     /// - forge::<loader-version> | forge:[<game-version>][:stable|unstable] => the 
     /// syntax is a bit cumbersome because you can either specify the full loader version
@@ -431,7 +431,7 @@ impl FromStr for StartVersion {
         let max_parts = match kind {
             "raw" => 1,
             "mojang" => 1,
-            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe" => 2,
+            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe-fabric" | "ornithe-quilt" => 2,
             "forge" | "neoforge" => 2,
             _ => return Err(format!("unknown installer kind: {kind}")),
         };
@@ -449,14 +449,15 @@ impl FromStr for StartVersion {
                     version => Self::Mojang { version: version.to_string() },
                 }
             }
-            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe" => {
+            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe-fabric" | "ornithe-quilt" => {
                 Self::Fabric { 
                     loader: match kind {
                         "fabric" => fabric::Loader::Fabric,
                         "quilt" => fabric::Loader::Quilt,
                         "legacyfabric" => fabric::Loader::LegacyFabric,
                         "babric" => fabric::Loader::Babric,
-                        "ornithe" => fabric::Loader::Ornithe,
+                        "ornithe-fabric" => fabric::Loader::OrnitheFabric,
+                        "ornithe-quilt" => fabric::Loader::OrnitheQuilt,
                         _ => unreachable!(),
                     },
                     game_version: match parts[0] {
@@ -744,8 +745,10 @@ pub enum SearchKind {
     Babric,
     /// Search for Babric supported game versions.
     BabricGame,
-    /// Search for Ornithe loader versions.
-    Ornithe,
+    /// Search for Ornithe/Fabric loader versions.
+    OrnitheFabric,
+    /// Search for Ornithe/Quilt loader versions.
+    OrnitheQuilt,
     /// Search for Ornithe supported game versions.
     OrnitheGame,
     /// Search for Forge loader versions.

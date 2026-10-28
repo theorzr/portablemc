@@ -1084,7 +1084,8 @@ fn fabric_id_name(loader: fabric::Loader) -> (&'static str, &'static str) {
         fabric::Loader::Quilt => ("quilt", "Quilt"),
         fabric::Loader::LegacyFabric => ("legacyfabric", "LegacyFabric"),
         fabric::Loader::Babric => ("babric", "Babric"),
-        fabric::Loader::Ornithe => ("ornithe", "Ornithe"),
+        fabric::Loader::OrnitheFabric => ("ornithe-fabric", "Ornithe/Fabric"),
+        fabric::Loader::OrnitheQuilt => ("ornithe-quilt", "Ornithe/Quilt"),
     }
 }
 

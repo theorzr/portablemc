@@ -27,8 +27,9 @@ pub fn search(cli: &mut Cli, args: &SearchArgs) -> ExitCode {
         SearchKind::LegacyfabricGame => search_fabric(cli, args, fabric::Loader::LegacyFabric, true),
         SearchKind::Babric => search_fabric(cli, args, fabric::Loader::Babric, false),
         SearchKind::BabricGame => search_fabric(cli, args, fabric::Loader::Babric, true),
-        SearchKind::Ornithe => search_fabric(cli, args, fabric::Loader::Ornithe, false),
-        SearchKind::OrnitheGame => search_fabric(cli, args, fabric::Loader::Ornithe, true),
+        SearchKind::OrnitheFabric => search_fabric(cli, args, fabric::Loader::OrnitheFabric, false),
+        SearchKind::OrnitheQuilt => search_fabric(cli, args, fabric::Loader::OrnitheQuilt, false),
+        SearchKind::OrnitheGame => search_fabric(cli, args, fabric::Loader::OrnitheFabric, true),
         SearchKind::Forge => search_forge(cli, args, forge::Loader::Forge),
         SearchKind::NeoForge => search_forge(cli, args, forge::Loader::NeoForge),
     }
