@@ -3,7 +3,7 @@ from typing_extensions import Self
 from pathlib import Path
 from enum import Enum, auto
 
-from . import mojang, base
+from . import moj, base
 
 
 class Loader(Enum):
@@ -23,7 +23,7 @@ class Version:
         def __new__(cls, name: str) -> Self: ...
 
 
-class Installer(mojang.Installer):
+class Installer(moj.Installer):
 
     def __new__(cls, loader: Loader, version: Version) -> Self: ...
 
@@ -42,7 +42,7 @@ class Installer(mojang.Installer):
     def install(self, handler: base.Handler | None = None) -> base.Game: ...
 
 
-class Handler(mojang.Handler):
+class Handler(moj.Handler):
 
     def installing(self, tmp_dir: Path, reason: InstallReason) -> None: ...
     def fetch_installer(self, version: str) -> None: ...

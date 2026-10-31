@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 
-from portablemc import base, mojang, fabric, forge
+from portablemc import base, moj, fabric, forge
 
 
 class MainDir:
@@ -43,11 +43,11 @@ class MainDir:
         self.setup(installer)
         return installer
 
-    def mojang_installer(self, version: str) -> mojang.Installer:
+    def moj_installer(self, version: str) -> moj.Installer:
         """Return a Mojang installer that never fetches versions, only local ones."""
-        installer = mojang.Installer(version)
+        installer = moj.Installer(version)
         self.setup(installer)
-        installer.add_fetch_exclude(mojang.FetchExclude.All())
+        installer.add_fetch_exclude(moj.FetchExclude.All())
         return installer
 
 

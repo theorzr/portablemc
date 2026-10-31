@@ -100,6 +100,24 @@ class Installer(base.Installer):
     @fix_lwjgl.setter
     def fix_lwjgl(self, lwjgl_version: str | None): ...
 
+    @property
+    def manifest_url(self) -> str | None: ...
+    @manifest_url.setter
+    def manifest_url(self, manifest_url: str):
+        """Change the URL of the version manifest used to find missing versions and
+        check if versions need to be updated. By default, this targets the public
+        Mojang manifest, but it can be used to specify a mirror or other manifests."""
+
+    @property
+    def manifest_prefix(self) -> str | None: ...
+    @manifest_prefix.setter
+    def manifest_prefix(self, manifest_prefix: str):
+        """Change the prefix to set for all the versions of the configured manifest,
+        only versions starting with this prefix are fetched from the manifest. For
+        example with prefix `foo-`, version `foo-1.7.10` is fetched as `1.7.10` from
+        the manifest but stored under `<versions_dir>/foo-1.7.10/`. The prefix is also
+        added to the latest release and snapshot, but a named version must include it."""
+
     def install(self, handler: base.Handler | None = None) -> base.Game: ...
 
 
@@ -153,9 +171,10 @@ class FetchExclude:
 class Manifest:
 
     @staticmethod
-    def request(handler: base.Handler | None = None) -> Manifest:
+    def request(handler: base.Handler | None = None, url: str | None = None) -> Manifest:
         """Request the Mojang versions manifest, the handler's `download_progress`
-        method is called if the manifest needs to be downloaded."""
+        method is called if the manifest needs to be downloaded. The default Mojang
+        manifest is requested if no URL is given."""
 
     def __repr__(self) -> str: ...
     def __len__(self) -> int: ...
@@ -166,6 +185,10 @@ class Manifest:
     def latest_release_name(self) -> str: ...
     @property
     def latest_snapshot_name(self) -> str: ...
+
+    def latest_name(self, key: str) -> str | None:
+        """Return the latest version name for the given "latest" key, such as
+        `release` or `snapshot`, or any other key present in the manifest."""
 
     def find_by_name(self, name: str) -> ManifestVersion | None: ...
 

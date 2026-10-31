@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from portablemc import base, mojang
+from portablemc import base, moj
 
 from helpers import MainDir, RecordHandler
 
@@ -27,15 +27,15 @@ MINIMAL = {
 
 
 def test_version():
-    assert mojang.Installer().version == mojang.Version.Release
-    assert mojang.Installer(mojang.Version.Snapshot).version == mojang.Version.Snapshot
-    installer = mojang.Installer("1.20")
+    assert moj.Installer().version == moj.Version.Release
+    assert moj.Installer(moj.Version.Snapshot).version == moj.Version.Snapshot
+    installer = moj.Installer("1.20")
     assert installer.version == "1.20"
     assert isinstance(installer, base.Installer)
 
 
 def test_auth_offline():
-    installer = mojang.Installer()
+    installer = moj.Installer()
     installer.set_auth_offline(UUID(int=1), "Alex")
     assert installer.auth_uuid == UUID(int=1)
     assert installer.auth_username == "Alex"
@@ -48,7 +48,7 @@ def test_auth_offline():
 
 
 def test_properties():
-    installer = mojang.Installer()
+    installer = moj.Installer()
     assert installer.resolution is None
     installer.resolution = (800, 600)
     assert installer.resolution == (800, 600)
@@ -61,22 +61,22 @@ def test_properties():
 
 
 def test_quick_play():
-    installer = mojang.Installer()
+    installer = moj.Installer()
     assert installer.quick_play is None
-    installer.quick_play = mojang.QuickPlay.Multiplayer("localhost", 25565)
+    installer.quick_play = moj.QuickPlay.Multiplayer("localhost", 25565)
     quick_play = installer.quick_play
-    assert isinstance(quick_play, mojang.QuickPlay.Multiplayer)
-    assert isinstance(quick_play, mojang.QuickPlay)
+    assert isinstance(quick_play, moj.QuickPlay.Multiplayer)
+    assert isinstance(quick_play, moj.QuickPlay)
     assert (quick_play.host, quick_play.port) == ("localhost", 25565)
-    installer.quick_play = mojang.QuickPlay.Path("world")
+    installer.quick_play = moj.QuickPlay.Path("world")
     assert installer.quick_play.path == Path("world")
 
 
 def test_fetch_excludes():
-    installer = mojang.Installer()
+    installer = moj.Installer()
     assert installer.fetch_excludes == []
-    installer.fetch_excludes = [mojang.FetchExclude.Exact("a")]
-    installer.add_fetch_exclude(mojang.FetchExclude.Regex("b.*"))
+    installer.fetch_excludes = [moj.FetchExclude.Exact("a")]
+    installer.add_fetch_exclude(moj.FetchExclude.Regex("b.*"))
     exact, regex = installer.fetch_excludes
     assert exact.name == "a"
     assert regex.pattern == "b.*"
@@ -87,7 +87,7 @@ def test_fetch_excludes():
 def test_local_version(main_dir: MainDir):
     main_dir.write_version("minimal", MINIMAL)
     main_dir.write_file("versions/minimal/minimal.jar")
-    installer = main_dir.mojang_installer("minimal")
+    installer = main_dir.moj_installer("minimal")
     installer.set_auth_offline(UUID(int=1), "Alex")
     installer.demo = True
     game = installer.install(RecordHandler())
@@ -100,12 +100,12 @@ def test_local_version(main_dir: MainDir):
 
 def test_fetch_excluded(main_dir: MainDir):
     with pytest.raises(base.VersionNotFoundError):
-        main_dir.mojang_installer("missing").install(RecordHandler())
+        main_dir.moj_installer("missing").install(RecordHandler())
 
 
 @pytest.mark.network
 def test_manifest():
-    manifest = mojang.Manifest.request()
+    manifest = moj.Manifest.request()
     assert len(manifest) > 0
     release = manifest.find_by_name(manifest.latest_release_name)
     assert release is not None
@@ -116,7 +116,7 @@ def test_manifest():
 
 @pytest.mark.network
 def test_install_release(main_dir: MainDir):
-    installer = mojang.Installer()
+    installer = moj.Installer()
     main_dir.setup(installer)
     handler = RecordHandler()
     with pytest.raises(base.DownloadResourcesCancelledError):

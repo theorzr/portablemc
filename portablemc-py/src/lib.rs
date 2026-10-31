@@ -10,7 +10,7 @@ mod msa;
 
 mod installer;
 mod base;
-mod mojang;
+mod moj;
 mod fabric;
 mod forge;
 
@@ -26,7 +26,7 @@ fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     add_submodule(m, "msa", msa::py_module)?;
     add_submodule(m, "base", base::py_module)?;
-    add_submodule(m, "mojang", mojang::py_module)?;
+    add_submodule(m, "moj", moj::py_module)?;
     add_submodule(m, "fabric", fabric::py_module)?;
     add_submodule(m, "forge", forge::py_module)?;
 

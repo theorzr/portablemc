@@ -4,13 +4,15 @@
 
 pub(crate) mod serde;
 
-use std::io::{Write as _, BufReader};
+use std::io::{self, BufReader, Write as _};
 use std::path::{Path, PathBuf};
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::env;
 use std::fs;
 
 use chrono::{DateTime, FixedOffset};
+use sha1::{Digest, Sha1};
 use regex::Regex;
 use uuid::Uuid;
 
@@ -21,7 +23,7 @@ use crate::msa;
 
 
 /// Static URL to the version manifest provided by Mojang.
-pub(crate) const VERSION_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+pub(crate) const DEFAULT_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
 /// An installer for supporting Mojang-provided versions. It provides support for various
 /// standard arguments such as demo mode, window resolution and quick play, it also 
@@ -30,7 +32,7 @@ pub(crate) const VERSION_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc
 /// By default, this installer tries to handle every version that is not found in the
 /// hierarchy, if a version with that name exists in the Mojang's versions manifest, then
 /// it is fetched. This means that every missing version will try to fetch the manifest
-/// (using the cached version if relevant). This behavior can be changed by excluding 
+/// (using the cached version if relevant).
 /// 
 /// Notes about various versions:
 /// - 1.19.3 metadata adds no parameter to specify extract directory for LWJGL (version
@@ -66,6 +68,8 @@ struct InstallerInner {
     fix_legacy_resolution: bool,
     fix_broken_authlib: bool,
     fix_lwjgl: Option<String>,
+    manifest_url: Option<String>,
+    manifest_prefix: Option<String>,
 }
 
 impl Installer {
@@ -97,6 +101,8 @@ impl Installer {
                 fix_legacy_resolution: true,
                 fix_broken_authlib: true,
                 fix_lwjgl: None,
+                manifest_url: None,
+                manifest_prefix: None,
             }
         }
     }
@@ -149,6 +155,45 @@ impl Installer {
     /// Append the given filter to the fetch exclude list.
     pub fn add_fetch_exclude(&mut self, exclude: FetchExclude) -> &mut Self {
         self.inner.fetch_excludes.push(exclude);
+        self
+    }
+
+    /// See [`Self::set_manifest_url`]
+    #[inline]
+    pub fn manifest_url(&self) -> Option<&str> {
+        self.inner.manifest_url.as_deref()
+    }
+
+    /// Change the URL of the version manifest used to find missing versions and check
+    /// if versions need to be updated. By default, this targets the public Mojang
+    /// manifest, but this option can be used to specify a mirror, or other manifests.
+    #[inline]
+    pub fn set_manifest_url(&mut self, manifest_url: impl Into<String>) -> &mut Self {
+        self.inner.manifest_url = Some(manifest_url.into());
+        self
+    }
+
+    /// See [`Self::set_manifest_prefix`]
+    #[inline]
+    pub fn manifest_prefix(&self) -> Option<&str> {
+        self.inner.manifest_prefix.as_deref()
+    }
+
+    /// Change the prefix to set for all the versions of the configured version manifest.
+    /// 
+    /// For example with your custom manifest (see [`Self::set_manifest_url`]), you may
+    /// not want to conflict with official Mojang versions (like `1.7.10`) if your version
+    /// is slightly different.
+    /// 
+    /// In that case you are able to set the *manifest prefix* to something like `foo-`, 
+    /// then you can only fetch versions starting with this prefix, such as `foo-1.7.10`.
+    /// The version looked up in your custom manifest is still bare `1.7.10` but the 
+    /// version is stored under `<versions_dir>/foo-1.7.10/`. The prefix is also added
+    /// to the latest release and snapshot when using [`Version::Release`] or 
+    /// [`Version::Snapshot`], but a [`Version::Name`] must include it.
+    #[inline]
+    pub fn set_manifest_prefix(&mut self, manifest_prefix: impl Into<String>) -> &mut Self {
+        self.inner.manifest_prefix = Some(manifest_prefix.into());
         self
     }
 
@@ -478,16 +523,20 @@ impl Installer {
             ref inner,
         } = self;
 
+        let manifest_url = self.inner.manifest_url.as_deref().unwrap_or(DEFAULT_MANIFEST_URL);
         let manifest = match self.inner.version {
             Version::Release | 
-            Version::Snapshot => Some(Manifest::request((&mut *handler).into_download())?),
+            Version::Snapshot => Some(Manifest::request_from_url(manifest_url, (&mut *handler).into_download())?),
             _ => None
         };
 
+        // Versions from the manifest are bare, so the prefix is added, but a named
+        // version is already the full name of the version to install.
+        let manifest_prefix = self.inner.manifest_prefix.as_deref().unwrap_or_default();
         let version = match &self.inner.version {
-            Version::Release => manifest.as_ref().unwrap().latest_release_name(),
-            Version::Snapshot => manifest.as_ref().unwrap().latest_snapshot_name(),
-            Version::Name(name) => name.as_str(),
+            Version::Release => format!("{manifest_prefix}{}", manifest.as_ref().unwrap().latest_release_name()),
+            Version::Snapshot => format!("{manifest_prefix}{}", manifest.as_ref().unwrap().latest_snapshot_name()),
+            Version::Name(name) => name.clone(),
         };
 
         base.set_version(version);
@@ -813,14 +862,25 @@ pub struct Manifest {
 
 impl Manifest {
 
-    /// Request the Mojang versions' manifest.
-    pub fn request(mut handler: impl download::Handler) -> Result<Self> {
-        return Self::request_dyn(&mut handler)
+    /// Request the default Mojang versions' manifest.
+    /// 
+    /// Note that this takes a download handler since such file is quite huge and tracking
+    /// the download could make sense!
+    pub fn request(handler: impl download::Handler) -> Result<Self> {
+        Self::request_from_url(DEFAULT_MANIFEST_URL, handler)
     }
 
-    fn request_dyn(handler: &mut dyn download::Handler) -> Result<Self> {
+    /// Request a Mojang version's manifest at the given URL.
+    /// 
+    /// Note that this takes a download handler since such file is quite huge and tracking
+    /// the download could make sense!
+    pub fn request_from_url(url: &str, mut handler: impl download::Handler) -> Result<Self> {
+        Self::request_dyn(url, &mut handler)
+    }
 
-        let mut entry = download::single_cached(VERSION_MANIFEST_URL)
+    fn request_dyn(url: &str, handler: &mut dyn download::Handler) -> Result<Self> {
+
+        let mut entry = download::single_cached(url)
             .set_keep_open()
             .download(handler)?;
 
@@ -852,6 +912,15 @@ impl Manifest {
     #[inline]
     pub fn latest_snapshot_name(&self) -> &str {
         &self.inner.latest.snapshot
+    }
+
+    /// Return the latest version name for the given "latest" key.
+    pub fn latest_name(&self, key: &str) -> Option<&str> {
+        match key {
+            "release" => Some(self.latest_release_name()),
+            "snapshot" => Some(self.latest_snapshot_name()),
+            _ => self.inner.latest.extra.get(key).map(String::as_str),
+        }
     }
 
     /// Find the index of a version given its name.
@@ -888,7 +957,7 @@ impl<'a> ManifestVersion<'a> {
 
     /// The release channel of this version.
     pub fn channel(&self) -> VersionChannel {
-        VersionChannel::from(self.0.r#type)
+        self.0.r#type.parse().unwrap()
     }
 
     /// The last update time for this version.
@@ -1006,7 +1075,10 @@ impl InternalHandler<'_> {
     }
 
     fn loaded_hierarchy(&mut self, hierarchy: &[base::LoadedVersion]) -> Result<()> {
-        *self.leaf_version = hierarchy.last().unwrap().name().to_string();
+        // The manifest prefix is stripped so that legacy fixes can match the bare name.
+        let leaf_version = hierarchy.last().unwrap().name();
+        let manifest_prefix = self.installer.manifest_prefix.as_deref().unwrap_or_default();
+        *self.leaf_version = leaf_version.strip_prefix(manifest_prefix).unwrap_or(leaf_version).to_string();
         Ok(())
     }
 
@@ -1025,23 +1097,60 @@ impl InternalHandler<'_> {
             }
         }
 
-        // Only ensure that the manifest is loaded after checking fetch exclude.
-        let manifest = match self.manifest {
-            Some(ref manifest) => manifest,
-            None => self.manifest.insert(Manifest::request((&mut *self.inner).into_download())?)
-        };
-
-        // Unwrap because we checked the manifest in the condition.
-        let Some(version) = manifest.find_by_name(version) else {
+        // If a manifest prefix is defined, we can only handle versions that starts with
+        // this prefix, this is some kind of fetch filter like above, but this in 
+        // particular is used to strip the version and derive to the manifest's version.
+        let manifest_prefix = self.installer.manifest_prefix.as_deref().unwrap_or_default();
+        let Some(manifest_version) = version.strip_prefix(manifest_prefix) else {
             return Ok(());
         };
 
-        if !check_file_advanced(file, version.size(), version.sha1(), true)? {
+        // Only ensure that the manifest is loaded after checking fetch exclude.
+        let manifest_url = self.installer.manifest_url.as_deref().unwrap_or(DEFAULT_MANIFEST_URL);
+        let manifest = match self.manifest {
+            Some(ref manifest) => manifest,
+            None => self.manifest.insert(Manifest::request_from_url(manifest_url, (&mut *self.inner).into_download())?)
+        };
+
+        let Some(manifest_version) = manifest.find_by_name(manifest_version) else {
+            return Ok(());
+        };
+
+        // If the manifest version is found. It means that when this version was 
+        // installed, a .xsha1 file was created and contains the XOR of the original 
+        // expected sha1 and the sha1 of the file after its "id" field was patched. 
+        // This allows knowing the sha1 expected for that file even after it's patched 
+        // by only storing one XOR.
+        //
+        // EXAMPLE: This file can therefore be manually created by anyone who wants to 
+        // include its own modifications and keep them.
+        let mut sha1 = manifest_version.sha1().copied();
+
+        if let Some(sha1) = &mut sha1 {
+            let xsha1_file = file.with_added_extension("xsha1");
+            match fs::read_to_string(&xsha1_file) {
+                Ok(raw) => {
+                    if let Some(xsha1) = crate::serde::parse_hex_bytes::<20>(&raw) {
+                        *sha1 = xor_bytes(sha1, &xsha1);
+                    }
+                }
+                Err(e) if let io::ErrorKind::NotFound = e.kind() => {
+                    // Not having xsha1 is purely valid, but at the risk of forcing 
+                    // re-fetch if the SHA-1 is not matching!
+                }
+                Err(e) => return Err(base::Error::new_io_file(e, &xsha1_file).into())
+            };
+        }
+
+        // The size of a patched file differs from the manifest's one, so it's not checked.
+        let size = manifest_version.size().filter(|_| manifest_prefix.is_empty());
+
+        if !check_file_advanced(file, size, sha1.as_ref(), true)? {
             
             fs::remove_file(file)
                 .map_err(|e| base::Error::new_io_file(e, file))?;
             
-            self.inner.on_event(Event::InvalidatedVersion { version: version.name() });
+            self.inner.on_event(Event::InvalidatedVersion { version });
         
         }
 
@@ -1055,18 +1164,77 @@ impl InternalHandler<'_> {
             return Ok(false);
         };
         
-        let Some(version) = manifest.find_by_name(version) else {
+        let manifest_prefix = self.installer.manifest_prefix.as_deref().unwrap_or_default();
+        let Some(manifest_version) = version.strip_prefix(manifest_prefix) else {
             return Ok(false);
         };
         
-        self.inner.on_event(Event::FetchVersion { version: version.name() });
+        let Some(manifest_version) = manifest.find_by_name(manifest_version) else {
+            return Ok(false);
+        };
         
-        download::single(version.url(), file)
-            .set_expected_size(version.size())
-            .set_expected_sha1(version.sha1().copied())
+        self.inner.on_event(Event::FetchVersion { version });
+        
+        // When we have a prefix, download to .tmp so that the version file is only
+        // written once the .xsha1 file is written, so this remains valid if interrupted.
+        let entry_file =
+            if !manifest_prefix.is_empty() {
+                &file.with_added_extension("tmp")
+            } else {
+                file
+            };
+
+        let mut entry = download::single(manifest_version.url(), entry_file)
+            .set_expected_size(manifest_version.size())
+            .set_expected_sha1(manifest_version.sha1().copied())
+            .set_keep_open()
             .download((&mut *self.inner).into_download())?;
 
-        self.inner.on_event(Event::FetchedVersion { version: version.name() });
+        // With a manifest prefix, the "id" field is patched to match the prefixed name,
+        // and the XOR of the original and patched sha1 is stored in the .xsha1 file, so
+        // that the file can still be checked against the manifest's sha1 later.
+        if !manifest_prefix.is_empty() {
+
+            let patched = {
+
+                let reader = BufReader::new(entry.take_handle().unwrap());
+
+                let mut deserializer = serde_json::Deserializer::from_reader(reader);
+                let mut metadata = serde_path_to_error::deserialize::<_, serde_json::Map<String, serde_json::Value>>(&mut deserializer)
+                    .map_err(|e| base::Error::new_json_file(e, entry_file))?;
+
+                metadata.insert("id".to_string(), serde_json::Value::String(version.to_string()));
+
+                let mut patched = Vec::new();
+                let mut serializer = serde_json::Serializer::new(&mut patched);
+                serde_path_to_error::serialize(&metadata, &mut serializer)
+                    .map_err(|e| base::Error::new_json_file(e, entry_file))?;
+
+                patched
+
+            };
+
+            // Ignore error while deleting the tmp file, not critical...
+            let _ = fs::remove_file(entry_file);
+
+            let patched_sha1: [u8; 20] = Sha1::digest(&patched).into();
+            
+            let mut xsha1_raw = String::with_capacity(40);
+            for byte in xor_bytes(entry.sha1(), &patched_sha1) {
+                write!(xsha1_raw, "{byte:02x}").unwrap();
+            }
+
+            let xsha1_file = file.with_added_extension("xsha1");
+            fs::write(&xsha1_file, xsha1_raw)
+                .map_err(|e| base::Error::new_io_file(e, &xsha1_file))?;
+
+            // Once xsha1 is written, write the version file and remove .tmp one...
+            fs::write(file, &patched)
+                .map_err(|e| base::Error::new_io_file(e, file))?;
+
+        }
+
+        self.inner.on_event(Event::FetchedVersion { version });
 
         Ok(true)
 
@@ -1199,4 +1367,12 @@ impl InternalHandler<'_> {
     
     }
 
+}
+
+fn xor_bytes<const N: usize>(a: &[u8; N], b: &[u8; N]) -> [u8; N] {
+    let mut res = [0u8; N];
+    for i in 0..N {
+        res[i] = a[i] ^ b[i];
+    }
+    res
 }

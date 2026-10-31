@@ -17,7 +17,7 @@ use crate::uuid::PyUuid;
 use crate::{err, handler, msa};
 
 
-/// Define the `_portablemc.mojang` submodule.
+/// Define the `_portablemc.moj` submodule.
 pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyVersion>()?;
     m.add_class::<PyQuickPlay>()?;
@@ -26,11 +26,11 @@ pub(super) fn py_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyHandler>()?;
     m.add_class::<PyManifest>()?;
     m.add_class::<PyManifestVersion>()?;
-    err::add_mojang(m)?;
+    err::add_moj(m)?;
     Ok(())
 }
 
-#[pyclass(name = "Version", module = "portablemc.mojang", eq, from_py_object)]
+#[pyclass(name = "Version", module = "portablemc.moj", eq, from_py_object)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PyVersion {
     Release,
@@ -53,7 +53,7 @@ impl From<PyVersionUnion> for Version {
     }
 }
 
-#[pyclass(name = "QuickPlay", module = "portablemc.mojang", eq, from_py_object)]
+#[pyclass(name = "QuickPlay", module = "portablemc.moj", eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub enum PyQuickPlay {
     Path {
@@ -83,7 +83,7 @@ impl PyQuickPlay {
     }
 }
 
-#[pyclass(name = "FetchExclude", module = "portablemc.mojang", eq, from_py_object)]
+#[pyclass(name = "FetchExclude", module = "portablemc.moj", eq, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub enum PyFetchExclude {
     All {},
@@ -129,7 +129,7 @@ impl From<&FetchExclude> for PyFetchExclude {
     }
 }
 
-#[pyclass(name = "Installer", module = "portablemc.mojang", frozen, subclass, extends = crate::base::PyInstaller)]
+#[pyclass(name = "Installer", module = "portablemc.moj", frozen, subclass, extends = crate::base::PyInstaller)]
 pub struct PyInstaller(pub Arc<SharedInstaller>);
 
 #[pymethods]
@@ -152,7 +152,7 @@ impl PyInstaller {
 
         let guard = self.0.lock()?;
         let inst = guard.mojang();
-        let mut buf = format!("<portablemc.mojang.Installer");
+        let mut buf = format!("<portablemc.moj.Installer");
         
         match inst.version() {
             Version::Release => write!(buf, " version=Version.Release").unwrap(),
@@ -417,18 +417,40 @@ impl PyInstaller {
         Ok(())
     }
 
+    #[getter]
+    fn manifest_url(&self) -> PyResult<Option<String>> {
+        Ok(self.0.lock()?.mojang().manifest_url().map(str::to_string))
+    }
+
+    #[setter]
+    fn set_manifest_url(&self, manifest_url: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_manifest_url(manifest_url);
+        Ok(())
+    }
+
+    #[getter]
+    fn manifest_prefix(&self) -> PyResult<Option<String>> {
+        Ok(self.0.lock()?.mojang().manifest_prefix().map(str::to_string))
+    }
+
+    #[setter]
+    fn set_manifest_prefix(&self, manifest_prefix: String) -> PyResult<()> {
+        self.0.lock()?.mojang_mut().set_manifest_prefix(manifest_prefix);
+        Ok(())
+    }
+
     #[pyo3(signature = (handler = None))]
     fn install(&self, py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<PyGame> {
         let mut guard = self.0.lock_install()?;
         let inst = guard.mojang_mut();
-        handler::install(py, handler, |h| inst.install(h), err::from_mojang)
+        handler::install(py, handler, |h| inst.install(h), err::from_moj)
     }
 
 }
 
 /// Handler for Mojang installer events, every method does nothing by default and can 
 /// be overridden by subclasses.
-#[pyclass(name = "Handler", module = "portablemc.mojang", frozen, subclass, extends = crate::base::PyHandler)]
+#[pyclass(name = "Handler", module = "portablemc.moj", frozen, subclass, extends = crate::base::PyHandler)]
 pub struct PyHandler;
 
 #[pymethods]
@@ -455,26 +477,30 @@ impl PyHandler {
 }
 
 /// The Mojang versions manifest.
-#[pyclass(name = "Manifest", module = "portablemc.mojang", frozen)]
+#[pyclass(name = "Manifest", module = "portablemc.moj", frozen)]
 pub struct PyManifest(Arc<Manifest>);
 
 #[pymethods]
 impl PyManifest {
 
     /// Request the manifest, the handler's `download_progress` method is called if 
-    /// the manifest needs to be downloaded.
+    /// the manifest needs to be downloaded. The default Mojang manifest is requested
+    /// if no URL is given.
     #[staticmethod]
-    #[pyo3(signature = (handler = None))]
-    fn request(py: Python<'_>, handler: Option<Py<PyAny>>) -> PyResult<Self> {
+    #[pyo3(signature = (handler = None, url = None))]
+    fn request(py: Python<'_>, handler: Option<Py<PyAny>>, url: Option<String>) -> PyResult<Self> {
         let mut adapter = HandlerAdapter::new(handler);
-        let res = py.detach(|| Manifest::request(&mut adapter));
+        let res = py.detach(|| match url {
+            Some(url) => Manifest::request_from_url(&url, &mut adapter),
+            None => Manifest::request(&mut adapter),
+        });
         adapter.finish()?;
         res.map(|manifest| Self(Arc::new(manifest)))
-            .map_err(|e| err::from_mojang(py, e))
+            .map_err(|e| err::from_moj(py, e))
     }
 
     fn __repr__(&self) -> String {
-        format!("<portablemc.mojang.Manifest latest_release_name={:?} latest_snapshot_name={:?}>", 
+        format!("<portablemc.moj.Manifest latest_release_name={:?} latest_snapshot_name={:?}>", 
             self.0.latest_release_name(),
             self.0.latest_snapshot_name())
     }
@@ -508,6 +534,10 @@ impl PyManifest {
         self.0.latest_snapshot_name()
     }
 
+    fn latest_name(&self, key: &str) -> Option<&str> {
+        self.0.latest_name(key)
+    }
+
     fn find_by_name(&self, name: &str) -> Option<PyManifestVersion> {
         self.0.find_index_of_name(name)
             .map(|index| PyManifestVersion { manifest: Arc::clone(&self.0), index })
@@ -516,7 +546,7 @@ impl PyManifest {
 }
 
 /// A version in the Mojang versions manifest.
-#[pyclass(name = "ManifestVersion", module = "portablemc.mojang", frozen)]
+#[pyclass(name = "ManifestVersion", module = "portablemc.moj", frozen)]
 pub struct PyManifestVersion {
     manifest: Arc<Manifest>,
     index: usize,
@@ -534,7 +564,7 @@ impl PyManifestVersion {
 impl PyManifestVersion {
 
     fn __repr__(&self) -> String {
-        format!("<portablemc.mojang.ManifestVersion name={:?}>", self.get().name())
+        format!("<portablemc.moj.ManifestVersion name={:?}>", self.get().name())
     }
 
     #[getter]

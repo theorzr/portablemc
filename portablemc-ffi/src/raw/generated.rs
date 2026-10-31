@@ -268,6 +268,7 @@ pub enum pmc_version_channel {
     PMC_VERSION_CHANNEL_SNAPSHOT = 2,
     PMC_VERSION_CHANNEL_BETA = 3,
     PMC_VERSION_CHANNEL_ALPHA = 4,
+    PMC_VERSION_CHANNEL_UNKNOWN = 5,
 }
 #[doc = " Represent a version loaded during the installation."]
 #[repr(C)]

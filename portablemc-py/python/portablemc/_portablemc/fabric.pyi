@@ -1,7 +1,7 @@
 from typing_extensions import Self
 from enum import Enum, auto
 
-from . import mojang, base
+from . import moj, base
 
 
 class Loader(Enum):
@@ -22,7 +22,7 @@ class LoaderVersion(Enum):
     Unstable = auto()
 
 
-class Installer(mojang.Installer):
+class Installer(moj.Installer):
 
     def __new__(cls, loader: Loader, game_version: str | GameVersion = GameVersion.Stable, loader_version: str | LoaderVersion = LoaderVersion.Stable) -> Self: ...
 
@@ -46,7 +46,7 @@ class Installer(mojang.Installer):
     def install(self, handler: base.Handler | None = None) -> base.Game: ...
 
 
-class Handler(mojang.Handler):
+class Handler(moj.Handler):
 
     def fetch_loader_version(self, game_version: str, loader_version: str) -> None: ...
     def fetched_loader_version(self, game_version: str, loader_version: str) -> None: ...

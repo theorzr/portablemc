@@ -7,7 +7,7 @@ launches with the same username don't need to authenticate again.
 
 import sys
 
-from portablemc import mojang, msa
+from portablemc import moj, msa
 
 
 # The Azure application ID of PortableMC, you should register your own application
@@ -37,7 +37,7 @@ def main():
     print(f"Authenticated as {account.username} ({account.uuid})")
     db.store(account)
 
-    installer = mojang.Installer()
+    installer = moj.Installer()
     installer.set_auth_msa(account)
     installer.install().command()().wait()
 

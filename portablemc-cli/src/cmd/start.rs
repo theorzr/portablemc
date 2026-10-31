@@ -28,28 +28,13 @@ pub fn start(cli: &mut Cli, args: &StartArgs) -> ExitCode {
         StartVersion::Mojang { 
             ref version,
         } => {
-            start_mojang(version.clone(), cli, args)
+            start_mojang(moj::Version::Name(version.clone()), cli, args)
         }
-        StartVersion::MojangRelease |
+        StartVersion::MojangRelease => {
+            start_mojang(moj::Version::Release, cli, args)
+        }
         StartVersion::MojangSnapshot => {
-
-            let handler = LogHandler::new(&mut cli.out);
-            let repo = match moj::Manifest::request(handler) {
-                Ok(repo) => repo,
-                Err(e) => {
-                    log_mojang_error(cli, &e);
-                    return ExitCode::FAILURE;
-                }
-            };
-
-            let version = match args.version {
-                StartVersion::MojangRelease => repo.latest_release_name(),
-                StartVersion::MojangSnapshot => repo.latest_snapshot_name(),
-                _ => unreachable!(),
-            };
-
-            start_mojang(version.to_string(), cli, args)
-
+            start_mojang(moj::Version::Snapshot, cli, args)
         }
         StartVersion::Fabric { 
             loader,
@@ -101,9 +86,9 @@ pub fn start(cli: &mut Cli, args: &StartArgs) -> ExitCode {
 
 }
 
-/// Main entrypoint for starting a Mojang version from its name.
+/// Main entrypoint for starting a Mojang version.
 fn start_mojang(
-    version: String, 
+    version: moj::Version, 
     cli: &mut Cli, 
     args: &StartArgs,
 ) -> ExitCode {
@@ -355,6 +340,14 @@ fn apply_mojang_args(
         for exclude_name in &args.fetch_exclude {
             installer.add_fetch_exclude(FetchExclude::Exact(exclude_name.clone()));
         }
+    }
+
+    if let Some(manifest_url) = &args.manifest_url {
+        installer.set_manifest_url(manifest_url);
+    }
+
+    if let Some(manifest_prefix) = &args.manifest_prefix {
+        installer.set_manifest_prefix(manifest_prefix);
     }
 
     if let Some(name) = &args.join_world {

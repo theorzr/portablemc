@@ -5,12 +5,12 @@
 
 from itertools import islice
 
-from portablemc import base, mojang, fabric, forge
+from portablemc import base, moj, fabric, forge
 
 
 def main():
 
-    manifest = mojang.Manifest.request()
+    manifest = moj.Manifest.request()
     print(f"Latest release: {manifest.latest_release_name}")
     print(f"Latest snapshot: {manifest.latest_snapshot_name}")
 

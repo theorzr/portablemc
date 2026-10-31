@@ -1,5 +1,7 @@
 //! JSON schemas structures for serde deserialization.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, FixedOffset};
 
 use crate::base;
@@ -18,13 +20,15 @@ pub struct MojangManifest {
 pub struct MojangManifestLatest {
     pub release: String,
     pub snapshot: String,
+    #[serde(flatten)]
+    pub extra: HashMap<String, String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MojangManifestVersion {
     pub id: String,
-    pub r#type: base::serde::VersionType,
+    pub r#type: String,
     pub time: DateTime<FixedOffset>,
     pub release_time: DateTime<FixedOffset>,
     #[serde(flatten)]

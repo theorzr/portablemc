@@ -25,7 +25,7 @@ pub struct VersionMetadata {
     pub id: String,
     /// The version type, such as 'release' or 'snapshot'.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<VersionType>,
+    pub r#type: Option<String>,
     /// The last time this version has been updated.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<DateTimeChill>,
@@ -77,28 +77,6 @@ pub struct VersionMetadata {
     #[serde(default)]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub logging: HashMap<String, VersionLogging>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum VersionType {
-    Release,
-    Snapshot,
-    OldBeta,
-    OldAlpha,
-}
-
-impl VersionType {
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            VersionType::Release => "release",
-            VersionType::Snapshot => "snapshot",
-            VersionType::OldBeta => "old_beta",
-            VersionType::OldAlpha => "old_alpha",
-        }
-    }
-
 }
 
 /// Object describing the Mojang-provided Java version to use to launch the game.

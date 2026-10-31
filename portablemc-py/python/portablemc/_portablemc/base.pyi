@@ -145,6 +145,7 @@ class VersionChannel(Enum):
     Snapshot = auto()
     Beta = auto()
     Alpha = auto()
+    Unknown = auto()
 
 
 class LoadedVersion:

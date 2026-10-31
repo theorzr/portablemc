@@ -57,7 +57,7 @@ impl From<PyVersion> for Version {
     }
 }
 
-#[pyclass(name = "Installer", module = "portablemc.forge", frozen, subclass, extends = crate::mojang::PyInstaller)]
+#[pyclass(name = "Installer", module = "portablemc.forge", frozen, subclass, extends = crate::moj::PyInstaller)]
 pub(crate) struct PyInstaller(pub(crate) Arc<SharedInstaller>);
 
 #[pymethods]
@@ -71,7 +71,7 @@ impl PyInstaller {
         );
         
         PyClassInitializer::from(crate::base::PyInstaller(Arc::clone(&inst)))
-            .add_subclass(crate::mojang::PyInstaller(Arc::clone(&inst)))
+            .add_subclass(crate::moj::PyInstaller(Arc::clone(&inst)))
             .add_subclass(Self(inst))
 
     }
@@ -122,7 +122,7 @@ impl PyInstaller {
 
 /// Handler for Forge installer events, every method does nothing by default and can 
 /// be overridden by subclasses.
-#[pyclass(name = "Handler", module = "portablemc.forge", frozen, subclass, extends = crate::mojang::PyHandler)]
+#[pyclass(name = "Handler", module = "portablemc.forge", frozen, subclass, extends = crate::moj::PyHandler)]
 pub struct PyHandler;
 
 #[pymethods]
@@ -133,7 +133,7 @@ impl PyHandler {
     #[pyo3(signature = (*args, **kwargs))]
     fn __new__(args: &Bound<'_, PyAny>, kwargs: Option<&Bound<'_, PyAny>>) -> PyClassInitializer<Self> {
         PyClassInitializer::from(crate::base::PyHandler)
-            .add_subclass(crate::mojang::PyHandler)
+            .add_subclass(crate::moj::PyHandler)
             .add_subclass(Self)
     }
 

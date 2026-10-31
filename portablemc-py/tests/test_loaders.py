@@ -2,7 +2,7 @@
 
 import pytest
 
-from portablemc import base, mojang, fabric, forge
+from portablemc import base, moj, fabric, forge
 
 
 def test_fabric_installer():
@@ -10,7 +10,7 @@ def test_fabric_installer():
     assert installer.loader == fabric.Loader.Quilt
     assert installer.game_version == fabric.GameVersion.Stable
     assert installer.loader_version == fabric.LoaderVersion.Stable
-    assert isinstance(installer, mojang.Installer)
+    assert isinstance(installer, moj.Installer)
     installer.game_version = "1.20.1"
     installer.loader_version = fabric.LoaderVersion.Unstable
     assert installer.game_version == "1.20.1"
@@ -29,7 +29,7 @@ def test_forge_installer():
     assert installer.loader == forge.Loader.Forge
     assert isinstance(installer.version, forge.Version.Stable)
     assert isinstance(installer.version, forge.Version)
-    assert isinstance(installer, mojang.Installer)
+    assert isinstance(installer, moj.Installer)
     installer.version = forge.Version.Name("21.0.1")
     assert installer.version == forge.Version.Name("21.0.1")
 

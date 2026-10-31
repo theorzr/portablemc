@@ -26,7 +26,7 @@ create_exception!(portablemc.base, DownloadResourcesCancelledError, Error);
 create_exception!(portablemc.base, DownloadError, Error);
 create_exception!(portablemc.base, InternalError, Error);
 
-create_exception!(portablemc.mojang, LwjglFixNotFoundError, Error);
+create_exception!(portablemc.moj, LwjglFixNotFoundError, Error);
 
 /// Fabric and Forge both have a `LatestVersionNotFoundError`.
 pub mod fabric_exc {
@@ -78,8 +78,8 @@ pub fn add_base(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-/// Register the Mojang exceptions in the `portablemc.mojang` module.
-pub fn add_mojang(m: &Bound<'_, PyModule>) -> PyResult<()> {
+/// Register the Mojang exceptions in the `portablemc.moj` module.
+pub fn add_moj(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
     m.add("LwjglFixNotFoundError", py.get_type::<LwjglFixNotFoundError>())?;
     Ok(())
@@ -196,7 +196,7 @@ pub fn from_base(py: Python<'_>, error: base::Error) -> PyErr {
     }
 }
 
-pub fn from_mojang(py: Python<'_>, error: moj::Error) -> PyErr {
+pub fn from_moj(py: Python<'_>, error: moj::Error) -> PyErr {
     let message = error.to_string();
     match error {
         moj::Error::Base(error) => from_base(py, error),
@@ -209,7 +209,7 @@ pub fn from_mojang(py: Python<'_>, error: moj::Error) -> PyErr {
 pub fn from_fabric(py: Python<'_>, error: fabric::Error) -> PyErr {
     let message = error.to_string();
     match error {
-        fabric::Error::Mojang(error) => from_mojang(py, error),
+        fabric::Error::Mojang(error) => from_moj(py, error),
         fabric::Error::LatestVersionNotFound { game_version, stable } =>
             new_err::<fabric_exc::LatestVersionNotFoundError>(py, message, &[
                 ("game_version", attr(py, game_version)),
@@ -231,7 +231,7 @@ pub fn from_fabric(py: Python<'_>, error: fabric::Error) -> PyErr {
 pub fn from_forge(py: Python<'_>, error: forge::Error) -> PyErr {
     let message = error.to_string();
     match error {
-        forge::Error::Mojang(error) => from_mojang(py, error),
+        forge::Error::Mojang(error) => from_moj(py, error),
         forge::Error::LatestVersionNotFound { game_version, stable } =>
             new_err::<forge_exc::LatestVersionNotFoundError>(py, message, &[
                 ("game_version", attr(py, game_version)),

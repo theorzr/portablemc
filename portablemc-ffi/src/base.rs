@@ -324,6 +324,7 @@ impl Handler for AdapterHandler {
                             Some(VersionChannel::Snapshot) => PMC_VERSION_CHANNEL_SNAPSHOT,
                             Some(VersionChannel::Beta) => PMC_VERSION_CHANNEL_BETA,
                             Some(VersionChannel::Alpha) => PMC_VERSION_CHANNEL_ALPHA,
+                            Some(VersionChannel::Unknown) => PMC_VERSION_CHANNEL_UNKNOWN,
                         },
                     });
 

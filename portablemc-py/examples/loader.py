@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
-from portablemc import base, mojang, fabric, forge
+from portablemc import base, moj, fabric, forge
 
 
 FABRIC_LOADERS = {
@@ -24,7 +24,7 @@ FORGE_LOADERS = {
 }
 
 
-class Printer(mojang.Handler):
+class Printer(moj.Handler):
     """Print a few relevant events common to all installers."""
 
     def loaded_hierarchy(self, hierarchy: list[base.LoadedVersion]) -> None:
@@ -74,7 +74,7 @@ def main():
         # Forge versions are tied to a game version, so we need to know the latest
         # Mojang release if none is given.
         if game_version is None:
-            game_version = mojang.Manifest.request().latest_release_name
+            game_version = moj.Manifest.request().latest_release_name
         installer = forge.Installer(FORGE_LOADERS[loader], forge.Version.Stable(game_version))
         game = installer.install(ForgePrinter())
     else:

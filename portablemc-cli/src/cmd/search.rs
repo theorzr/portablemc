@@ -42,7 +42,12 @@ fn search_mojang(cli: &mut Cli, args: &SearchArgs) -> ExitCode {
 
     // Initial requests...
     let mut handler = LogHandler::new(&mut cli.out);
-    let manifest = match Manifest::request(&mut handler) {
+    let manifest = match &args.manifest_url {
+        Some(manifest_url) => Manifest::request_from_url(manifest_url, &mut handler),
+        None => Manifest::request(&mut handler),
+    };
+
+    let manifest = match manifest {
         Ok(manifest) => manifest,
         Err(e) => {
             log_mojang_error(cli, &e);
@@ -80,6 +85,14 @@ fn search_mojang(cli: &mut Cli, args: &SearchArgs) -> ExitCode {
             break;
         }
 
+        let (channel, channel_id, channel_fmt, is_latest) = match version.channel() {
+            VersionChannel::Release => (Some(SearchChannel::Release), "release", "Release", manifest.latest_release_name() == version.name()),
+            VersionChannel::Snapshot => (Some(SearchChannel::Snapshot), "snapshot", "Snapshot", manifest.latest_snapshot_name() == version.name()),
+            VersionChannel::Beta => (Some(SearchChannel::Beta), "beta", "Beta", false),
+            VersionChannel::Alpha => (Some(SearchChannel::Alpha), "alpha", "Alpha", false),
+            VersionChannel::Unknown => (None, "unknown", "Unknown", false),
+        };
+
         if let Some(only_name) = only_name {
             if version.name() != only_name {
                 continue;
@@ -90,13 +103,11 @@ fn search_mojang(cli: &mut Cli, args: &SearchArgs) -> ExitCode {
                 continue;
             }
 
-            if !args.match_channel(match version.channel() {
-                VersionChannel::Release => SearchChannel::Release,
-                VersionChannel::Snapshot => SearchChannel::Snapshot,
-                VersionChannel::Beta => SearchChannel::Beta,
-                VersionChannel::Alpha => SearchChannel::Alpha,
-            }) {
-                continue;
+            // Versions with an unknown channel never match a channel filter.
+            match channel {
+                Some(channel) if !args.match_channel(channel) => continue,
+                None if !args.channel.is_empty() => continue,
+                _ => {}
             }
 
         }
@@ -105,13 +116,6 @@ fn search_mojang(cli: &mut Cli, args: &SearchArgs) -> ExitCode {
         
         let mut row = table.row();
         row.cell(version.name());
-        
-        let (channel_id, channel_fmt, is_latest) = match version.channel() {
-            VersionChannel::Release => ("release", "Release", manifest.latest_release_name() == version.name()),
-            VersionChannel::Snapshot => ("snapshot", "Snapshot", manifest.latest_snapshot_name() == version.name()),
-            VersionChannel::Beta => ("beta", "Beta", false),
-            VersionChannel::Alpha => ("alpha", "Alpha", false),
-        };
         
         if is_latest {
             row.cell(format_args!("{channel_id}*")).format(format_args!("{channel_fmt}*"));

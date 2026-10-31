@@ -296,6 +296,7 @@ pub enum PyVersionChannel {
     Snapshot,
     Beta,
     Alpha,
+    Unknown,
 }
 
 impl From<VersionChannel> for PyVersionChannel {
@@ -305,6 +306,7 @@ impl From<VersionChannel> for PyVersionChannel {
             VersionChannel::Snapshot => Self::Snapshot,
             VersionChannel::Beta => Self::Beta,
             VersionChannel::Alpha => Self::Alpha,
+            VersionChannel::Unknown => Self::Unknown,
         }
     }
 }

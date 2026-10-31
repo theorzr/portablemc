@@ -5,12 +5,12 @@
 
 import sys
 
-from portablemc import mojang
+from portablemc import moj
 
 
 def main():
 
-    installer = mojang.Installer()
+    installer = moj.Installer()
     if len(sys.argv) > 1:
         installer.version = sys.argv[1]
     if len(sys.argv) > 2:

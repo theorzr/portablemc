@@ -6,7 +6,6 @@
 //! ```
 
 use std::error::Error;
-use std::io::Write;
 use std::env;
 
 use portablemc::{base, moj, fabric, forge};
@@ -55,6 +54,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             installer.install(&mut Printer)?
 
         }
+        "ornithe" => {
+
+            let mut installer = moj::Installer::new(match game_version {
+                Some(name) => moj::Version::Name(format!("ornithe-{name}")),
+                None => moj::Version::Release,
+            });
+
+            installer.set_manifest_url("https://ornithemc.net/mc-versions/gen2/version_manifest.json");
+            installer.set_manifest_prefix("ornithe-");
+
+            installer.install(&mut Printer)?
+
+        }
         _ => return Err(format!("unknown loader: {loader}").into()),
     };
 
@@ -69,57 +81,24 @@ struct Printer;
 
 impl base::Handler for Printer {
     fn on_event(&mut self, event: base::Event) {
-        match event {
-            base::Event::LoadedHierarchy { hierarchy } => {
-                let names = hierarchy.iter().map(|v| v.name()).collect::<Vec<_>>();
-                println!("Loaded versions: {}", names.join(" -> "));
-            }
-            base::Event::LoadedJvm { file, version, .. } => {
-                println!("Loaded JVM {} at {}", version.unwrap_or("?"), file.display());
-            }
-            base::Event::DownloadProgress { count, total_count, size, total_size } => {
-                print!("\rDownloading {count}/{total_count} ({:.1}/{:.1} MB)",
-                    size as f32 / 1_000_000.0, total_size as f32 / 1_000_000.0);
-                if count == total_count {
-                    println!();
-                }
-                let _ = std::io::stdout().flush();
-            }
-            _ => {}
-        }
+        println!("{event:?}");
     }
 }
 
 impl moj::Handler for Printer {
     fn on_event(&mut self, event: moj::Event) {
-        match event {
-            moj::Event::Base(event) => base::Handler::on_event(self, event),
-            moj::Event::FetchVersion { version } => println!("Fetching version {version}"),
-            _ => {}
-        }
+        println!("{event:?}");
     }
 }
 
 impl fabric::Handler for Printer {
     fn on_event(&mut self, event: fabric::Event) {
-        match event {
-            fabric::Event::Mojang(event) => moj::Handler::on_event(self, event),
-            fabric::Event::FetchVersion { game_version, loader_version } => {
-                println!("Fetching loader {loader_version} for {game_version}");
-            }
-            _ => {}
-        }
+        println!("{event:?}");
     }
 }
 
 impl forge::Handler for Printer {
     fn on_event(&mut self, event: forge::Event) {
-        match event {
-            forge::Event::Mojang(event) => moj::Handler::on_event(self, event),
-            forge::Event::Installing { reason, .. } => println!("Installing loader ({reason:?})"),
-            forge::Event::RunInstallerProcessor { name, .. } => println!("Running processor {name}"),
-            forge::Event::Installed => println!("Loader installed"),
-            _ => {}
-        }
+        println!("{event:?}");
     }
 }

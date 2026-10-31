@@ -259,6 +259,7 @@ typedef enum {
     PMC_VERSION_CHANNEL_SNAPSHOT,
     PMC_VERSION_CHANNEL_BETA,
     PMC_VERSION_CHANNEL_ALPHA,
+    PMC_VERSION_CHANNEL_UNKNOWN,
 } pmc_version_channel;
 
 /// Represent a version loaded during the installation.

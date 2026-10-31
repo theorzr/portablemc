@@ -270,6 +270,23 @@ pub struct StartArgs {
     /// See --fetch-exclude, note that this is incompatible with --fetch-exclude.
     #[arg(long, conflicts_with = "fetch_exclude", display_order = ORDER_FETCH)]
     pub fetch_exclude_all: bool,
+    /// Use a specific Mojang-compatible versions manifest URL. 
+    /// 
+    /// When using this, you must be careful because if the given manifest contains the 
+    /// same versions as the official versions manifest, they will be overridden if they 
+    /// are different in your manifest. To solve this, you can use --manifest-prefix to 
+    /// prepend a prefix to the installed version's directory and metadata.
+    #[arg(long, display_order = ORDER_FETCH)]
+    pub manifest_url: Option<String>,
+    /// The prefix to prepend to versions installed from the current manifest.
+    /// 
+    /// For example, using "ornithe-" as the prefix, and 
+    /// --manifest-url="https://ornithemc.net/mc-versions/gen2/version_manifest.json",
+    /// you can then use 'start ornithe-1.7.10', it will fetch the 1.7.10 version from
+    /// the Ornithe's manifest, but install the version in versions/ornithe-1.7.10.
+    /// The prefix is also added to the 'release' and 'snapshot' aliases.
+    #[arg(long, display_order = ORDER_FETCH)]
+    pub manifest_prefix: Option<String>,
     /// Use a filter to exclude Java libraries from the installation.
     /// 
     /// The filter is checked against each GAV (Group-Artifact-Version) of each library
@@ -699,6 +716,14 @@ pub struct SearchArgs {
     /// [supported search kinds: forge, neoforge]
     #[arg(long, display_order = ORDER_COMMON + 3)]
     pub game_version: Vec<String>,
+    /// Use a specific Mojang-compatible versions manifest URL.
+    /// 
+    /// Versions are listed as given by the manifest, without any prefix. See the 
+    /// --manifest-url and --manifest-prefix arguments of the 'start' command.
+    /// 
+    /// [supported search kinds: mojang]
+    #[arg(long, display_order = ORDER_COMMON + 4)]
+    pub manifest_url: Option<String>,
 }
 
 impl SearchArgs {

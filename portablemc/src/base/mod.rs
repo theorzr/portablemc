@@ -2,6 +2,7 @@
 
 pub(crate) mod serde;
 
+use std::convert::Infallible;
 use std::io::{self, BufReader, BufWriter, Seek, SeekFrom};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::fmt::{self, Debug, Write as _};
@@ -11,6 +12,7 @@ use std::fs::{self, File};
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::{env, thread};
+use std::str::FromStr;
 use std::ffi::OsStr;
 
 use indexmap::IndexSet;
@@ -2055,7 +2057,7 @@ impl LoadedVersion {
 
     /// Return the release channel for this version, if specified in the metadata.
     pub fn channel(&self) -> Option<VersionChannel> {
-        self.metadata.r#type.map(VersionChannel::from)
+        self.metadata.r#type.as_deref().map(|s| s.parse::<VersionChannel>().unwrap())
     }
 
 }
@@ -2078,20 +2080,23 @@ pub enum VersionChannel {
     Snapshot,
     Beta,
     Alpha,
+    Unknown,
 }
 
-/// Internal conversion from the serde equivalent of this to the public interface enum.
-/// Both have the same discriminant values so this should be optimized to just a copy.
-impl From<serde::VersionType> for VersionChannel {
-    #[inline]
-    fn from(value: serde::VersionType) -> Self {
-        match value {
-            serde::VersionType::Release => Self::Release,
-            serde::VersionType::Snapshot => Self::Snapshot,
-            serde::VersionType::OldBeta => Self::Beta,
-            serde::VersionType::OldAlpha => Self::Alpha,
-        }
+impl FromStr for VersionChannel {
+
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
+            "release" => Self::Release,
+            "snapshot" => Self::Snapshot,
+            "old_beta" => Self::Beta,
+            "old_alpha" => Self::Alpha,
+            _ => Self::Unknown,
+        })
     }
+
 }
 
 /// Represent a loaded library.
