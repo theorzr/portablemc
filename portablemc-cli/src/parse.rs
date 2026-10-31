@@ -161,7 +161,7 @@ pub struct StartArgs {
     /// other Fabric-like loaders, both 'stable' and 'unstable' would be equivalent 
     /// to 'b1.7.3'. See https://babric.github.io/.
     /// 
-    /// - ornithe-<fabric|quilt>:[<game-version>[:[<loader-version>]]] => same as 'fabric'
+    /// - ornithe:<fabric|quilt>:[<game-version>[:[<loader-version>]]] => same as 'fabric'
     /// or 'quilt', but using the Ornithe API for missing versions, with its gen2 
     /// intermediary mappings. The game versions are fetched from the Ornithe's versions
     /// manifest and installed as 'ornithe-<game-version>'. See https://ornithemc.net/.
@@ -279,7 +279,7 @@ pub struct StartArgs {
     /// prepend a prefix to the installed version's directory and metadata.
     ///
     /// This is ignored by mod loader installers, which use their own manifest.
-    #[arg(long, display_order = ORDER_FETCH)]
+    #[arg(long, value_name = "URL", display_order = ORDER_FETCH)]
     pub manifest_url: Option<String>,
     /// The prefix to prepend to versions installed from the current manifest.
     /// 
@@ -288,7 +288,7 @@ pub struct StartArgs {
     /// you can then use 'start ornithe-1.7.10', it will fetch the 1.7.10 version from
     /// the Ornithe's manifest, but install the version in versions/ornithe-1.7.10.
     /// The prefix is also added to the 'release' and 'snapshot' aliases.
-    #[arg(long, display_order = ORDER_FETCH)]
+    #[arg(long, value_name = "PREFIX", display_order = ORDER_FETCH)]
     pub manifest_prefix: Option<String>,
     /// Use a filter to exclude Java libraries from the installation.
     /// 
@@ -440,8 +440,17 @@ impl FromStr for StartVersion {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         
         // Extract the kind (defaults to mojang) and the parameters.
-        let (kind, rest) = s.split_once(':')
+        let (mut kind, mut rest) = s.split_once(':')
             .unwrap_or(("mojang", s));
+
+        // Ornithe kind is followed by its own sub-kind.
+        if kind == "ornithe" {
+            (kind, rest) = match rest.split_once(':').unwrap_or((rest, "")) {
+                ("fabric", rest) => ("ornithe:fabric", rest),
+                ("quilt", rest) => ("ornithe:quilt", rest),
+                _ => return Err(format!("ornithe installer requires 'fabric' or 'quilt' sub-kind")),
+            };
+        }
 
         // Then split the rest into all parts.
         let parts = rest.split(':').collect::<Vec<_>>();
@@ -451,7 +460,7 @@ impl FromStr for StartVersion {
         let max_parts = match kind {
             "raw" => 1,
             "mojang" => 1,
-            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe-fabric" | "ornithe-quilt" => 2,
+            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe:fabric" | "ornithe:quilt" => 2,
             "forge" | "neoforge" => 2,
             _ => return Err(format!("unknown installer kind: {kind}")),
         };
@@ -469,15 +478,15 @@ impl FromStr for StartVersion {
                     version => Self::Mojang { version: version.to_string() },
                 }
             }
-            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe-fabric" | "ornithe-quilt" => {
+            "fabric" | "quilt" | "legacyfabric" | "babric" | "ornithe:fabric" | "ornithe:quilt" => {
                 Self::Fabric { 
                     loader: match kind {
                         "fabric" => fabric::Loader::Fabric,
                         "quilt" => fabric::Loader::Quilt,
                         "legacyfabric" => fabric::Loader::LegacyFabric,
                         "babric" => fabric::Loader::Babric,
-                        "ornithe-fabric" => fabric::Loader::OrnitheFabric,
-                        "ornithe-quilt" => fabric::Loader::OrnitheQuilt,
+                        "ornithe:fabric" => fabric::Loader::OrnitheFabric,
+                        "ornithe:quilt" => fabric::Loader::OrnitheQuilt,
                         _ => unreachable!(),
                     },
                     game_version: match parts[0] {
@@ -725,7 +734,7 @@ pub struct SearchArgs {
     /// --manifest-url and --manifest-prefix arguments of the 'start' command.
     /// 
     /// [supported search kinds: mojang]
-    #[arg(long, display_order = ORDER_COMMON + 4)]
+    #[arg(long, value_name = "URL", display_order = ORDER_COMMON + 4)]
     pub manifest_url: Option<String>,
 }
 
