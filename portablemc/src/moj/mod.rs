@@ -173,6 +173,13 @@ impl Installer {
         self
     }
 
+    /// Use the default Mojang manifest, see [`Self::set_manifest_url`].
+    #[inline]
+    pub fn remove_manifest_url(&mut self) -> &mut Self {
+        self.inner.manifest_url = None;
+        self
+    }
+
     /// See [`Self::set_manifest_prefix`]
     #[inline]
     pub fn manifest_prefix(&self) -> Option<&str> {
@@ -194,6 +201,13 @@ impl Installer {
     #[inline]
     pub fn set_manifest_prefix(&mut self, manifest_prefix: impl Into<String>) -> &mut Self {
         self.inner.manifest_prefix = Some(manifest_prefix.into());
+        self
+    }
+
+    /// Don't prefix manifest versions, see [`Self::set_manifest_prefix`].
+    #[inline]
+    pub fn remove_manifest_prefix(&mut self) -> &mut Self {
+        self.inner.manifest_prefix = None;
         self
     }
 

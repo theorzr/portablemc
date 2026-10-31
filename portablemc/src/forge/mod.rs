@@ -54,8 +54,9 @@ impl Installer {
 
     /// Get the underlying mojang installer through mutable reference.
     /// 
-    /// *Note that the `version` and `fetch` properties will be overwritten when 
-    /// installing.*
+    /// *Note that the `version` and `fetch` properties will be overwritten when
+    /// installing, and the `manifest_url` and `manifest_prefix` properties will be
+    /// removed to use the Mojang manifest.*
     #[inline]
     pub fn mojang_mut(&mut self) -> &mut moj::Installer {
         &mut self.mojang
@@ -140,7 +141,11 @@ impl Installer {
             mojang.add_fetch_exclude(FetchExclude::Exact(root_version.clone()));
         }
 
-        // The goal is to run the installer a first time, check potential errors to 
+        // Forge versions inherit from Mojang versions, so the default manifest is used.
+        mojang.remove_manifest_url();
+        mojang.remove_manifest_prefix();
+
+        // The goal is to run the installer a first time, check potential errors to
         // know if the error is related to the loader, or not.
         mojang.set_version(root_version.clone());
         let reason = match mojang.install((&mut *handler).into_mojang()) {

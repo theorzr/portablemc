@@ -124,7 +124,9 @@ fn start_fabric(
     if !apply_mojang_args(inst.mojang_mut(), &mut *cli, args) {
         return ExitCode::FAILURE;
     }
-    
+
+    warn_manifest_ignored(cli, args);
+
     let mut log_handler = LogHandler::new(&mut cli.out);
     log_handler.set_fabric_loader(loader);
     let start_handler = StartHandler::new(args, log_handler);
@@ -151,6 +153,8 @@ fn start_forge(
     if !apply_mojang_args(inst.mojang_mut(), &mut *cli, args) {
         return ExitCode::FAILURE;
     }
+
+    warn_manifest_ignored(cli, args);
 
     let mut log_handler = LogHandler::new(&mut cli.out);
     log_handler.set_forge_loader(inst.loader());
@@ -231,6 +235,14 @@ fn apply_base_args(
 
     true
 
+}
+
+/// Mod loaders use their own versions manifest, so warn if one is given.
+fn warn_manifest_ignored(cli: &mut Cli, args: &StartArgs) {
+    if args.manifest_url.is_some() || args.manifest_prefix.is_some() {
+        cli.out.log("warn_manifest_ignored")
+            .warning("Mod loaders use their own versions manifest, so '--manifest-url' and '--manifest-prefix' will be ignored");
+    }
 }
 
 // Internal function to apply args to the mojang installer.

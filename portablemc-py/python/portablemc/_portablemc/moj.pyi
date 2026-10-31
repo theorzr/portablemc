@@ -103,7 +103,7 @@ class Installer(base.Installer):
     @property
     def manifest_url(self) -> str | None: ...
     @manifest_url.setter
-    def manifest_url(self, manifest_url: str):
+    def manifest_url(self, manifest_url: str | None):
         """Change the URL of the version manifest used to find missing versions and
         check if versions need to be updated. By default, this targets the public
         Mojang manifest, but it can be used to specify a mirror or other manifests."""
@@ -111,7 +111,7 @@ class Installer(base.Installer):
     @property
     def manifest_prefix(self) -> str | None: ...
     @manifest_prefix.setter
-    def manifest_prefix(self, manifest_prefix: str):
+    def manifest_prefix(self, manifest_prefix: str | None):
         """Change the prefix to set for all the versions of the configured manifest,
         only versions starting with this prefix are fetched from the manifest. For
         example with prefix `foo-`, version `foo-1.7.10` is fetched as `1.7.10` from

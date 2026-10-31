@@ -163,7 +163,8 @@ pub struct StartArgs {
     /// 
     /// - ornithe-<fabric|quilt>:[<game-version>[:[<loader-version>]]] => same as 'fabric'
     /// or 'quilt', but using the Ornithe API for missing versions, with its gen2 
-    /// intermediary mappings. See https://ornithemc.net/.
+    /// intermediary mappings. The game versions are fetched from the Ornithe's versions
+    /// manifest and installed as 'ornithe-<game-version>'. See https://ornithemc.net/.
     /// 
     /// - forge::<loader-version> | forge:[<game-version>][:stable|unstable] => the 
     /// syntax is a bit cumbersome because you can either specify the full loader version
@@ -276,6 +277,8 @@ pub struct StartArgs {
     /// same versions as the official versions manifest, they will be overridden if they 
     /// are different in your manifest. To solve this, you can use --manifest-prefix to 
     /// prepend a prefix to the installed version's directory and metadata.
+    ///
+    /// This is ignored by mod loader installers, which use their own manifest.
     #[arg(long, display_order = ORDER_FETCH)]
     pub manifest_url: Option<String>,
     /// The prefix to prepend to versions installed from the current manifest.

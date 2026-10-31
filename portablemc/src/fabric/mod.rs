@@ -12,6 +12,11 @@ use crate::base::{self, Game};
 use crate::download;
 
 
+/// URL to the Mojang-compatible versions manifest of Ornithe (gen2).
+const ORNITHE_MANIFEST_URL: &str = "https://ornithemc.net/mc-versions/gen2/version_manifest.json";
+/// Prefix given to versions fetched from the Ornithe manifest.
+const ORNITHE_MANIFEST_PREFIX: &str = "ornithe-";
+
 /// An installer for supporting mod loaders that are Fabric or like it (Quilt, 
 /// LegacyFabric, Babric, Ornithe). The generic parameter is used to specify the API to use.
 #[derive(Debug, Clone)]
@@ -48,8 +53,10 @@ impl Installer {
 
     /// Get the underlying mojang installer through mutable reference.
     /// 
-    /// *Note that the `version` and `fetch` properties will be overwritten when 
-    /// installing.*
+    /// *Note that the `version` and `fetch` properties will be overwritten when
+    /// installing, and also the `manifest_url` and `manifest_prefix` properties, set to
+    /// the Mojang manifest, or to the Ornithe manifest with `ornithe-` prefix for
+    /// Ornithe loaders.*
     #[inline]
     pub fn mojang_mut(&mut self) -> &mut moj::Installer {
         &mut self.mojang
@@ -153,7 +160,19 @@ impl Installer {
         let prefix = loader.default_prefix();
         let root_version = format!("{prefix}-{game_version}-{loader_version}");
         mojang.set_version(root_version.clone());
-        
+
+        // Ornithe versions inherit from its own game versions, these are fetched from
+        // its manifest and prefixed to not conflict with Mojang ones. The loader only
+        // works with these game versions, so any configured manifest is overridden.
+        // Other loaders inherit from Mojang versions, so the default manifest is used.
+        if let Loader::OrnitheFabric | Loader::OrnitheQuilt = loader {
+            mojang.set_manifest_url(ORNITHE_MANIFEST_URL);
+            mojang.set_manifest_prefix(ORNITHE_MANIFEST_PREFIX);
+        } else {
+            mojang.remove_manifest_url();
+            mojang.remove_manifest_prefix();
+        }
+
         // NOTE: We don't need to fetch exclude that version because the handler below
         // already take care of that! 'mojang.add_fetch_exclude(...)'
 
@@ -680,10 +699,11 @@ impl InternalHandler<'_> {
         // Force the version id, the prebuilt one might not be exact.
         metadata.id = version.to_string();
 
-        // Ornithe inherits from '<game>-vanilla', which isn't a Mojang version id.
+        // Ornithe inherits from '<game>-vanilla', which is '<game>' in its manifest, so
+        // it's renamed to the prefixed version that the Mojang installer can fetch.
         if let Some(parent) = metadata.inherits_from.as_mut()
         && let Some(stripped) = parent.strip_suffix("-vanilla") {
-            *parent = stripped.to_string();
+            *parent = format!("{ORNITHE_MANIFEST_PREFIX}{stripped}");
         }
         base::write_version_metadata(file, &metadata)?;
 

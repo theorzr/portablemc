@@ -423,8 +423,16 @@ impl PyInstaller {
     }
 
     #[setter]
-    fn set_manifest_url(&self, manifest_url: String) -> PyResult<()> {
-        self.0.lock()?.mojang_mut().set_manifest_url(manifest_url);
+    fn set_manifest_url(&self, manifest_url: Option<String>) -> PyResult<()> {
+        let mut guard = self.0.lock()?;
+        match manifest_url {
+            Some(manifest_url) => {
+                guard.mojang_mut().set_manifest_url(manifest_url);
+            }
+            None => {
+                guard.mojang_mut().remove_manifest_url();
+            }
+        }
         Ok(())
     }
 
@@ -434,8 +442,16 @@ impl PyInstaller {
     }
 
     #[setter]
-    fn set_manifest_prefix(&self, manifest_prefix: String) -> PyResult<()> {
-        self.0.lock()?.mojang_mut().set_manifest_prefix(manifest_prefix);
+    fn set_manifest_prefix(&self, manifest_prefix: Option<String>) -> PyResult<()> {
+        let mut guard = self.0.lock()?;
+        match manifest_prefix {
+            Some(manifest_prefix) => {
+                guard.mojang_mut().set_manifest_prefix(manifest_prefix);
+            }
+            None => {
+                guard.mojang_mut().remove_manifest_prefix();
+            }
+        }
         Ok(())
     }
 
